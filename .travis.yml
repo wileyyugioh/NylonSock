@@ -1,0 +1,6 @@
+---
+language: objective-c
+
+xcode_project: NylonSock.xcodeproj
+xcode_scheme: NylonSock
+
