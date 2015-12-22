@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		21C063601C27F763004A4AAC /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 21C0635F1C27F763004A4AAC /* test.cpp */; };
+		21AA0AD61C29054E00995D3B /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 21AA0AD51C29054E00995D3B /* test.cpp */; };
 		21C063621C27F763004A4AAC /* NylonSock.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21C063611C27F763004A4AAC /* NylonSock.1 */; };
 /* End PBXBuildFile section */
 
@@ -25,10 +25,11 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		21AA0AD51C29054E00995D3B /* test.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = test.cpp; sourceTree = "<group>"; };
+		21AA0AD81C29056200995D3B /* NylonSock.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = NylonSock.hpp; sourceTree = "<group>"; };
+		21AA0ADA1C2905BF00995D3B /* Socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Socket.h; sourceTree = "<group>"; };
 		21C0635C1C27F763004A4AAC /* NylonSock */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = NylonSock; sourceTree = BUILT_PRODUCTS_DIR; };
-		21C0635F1C27F763004A4AAC /* test.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = test.cpp; sourceTree = "<group>"; };
 		21C063611C27F763004A4AAC /* NylonSock.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = NylonSock.1; sourceTree = "<group>"; };
-		21D1C4E71C27F7B3001D59C8 /* Socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Socket.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +43,31 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		21AA0AD31C29052500995D3B /* include */ = {
+			isa = PBXGroup;
+			children = (
+				21AA0AD91C29059300995D3B /* NylonSock */,
+				21AA0AD81C29056200995D3B /* NylonSock.hpp */,
+			);
+			path = include;
+			sourceTree = "<group>";
+		};
+		21AA0AD41C29053A00995D3B /* test */ = {
+			isa = PBXGroup;
+			children = (
+				21AA0AD51C29054E00995D3B /* test.cpp */,
+			);
+			path = test;
+			sourceTree = "<group>";
+		};
+		21AA0AD91C29059300995D3B /* NylonSock */ = {
+			isa = PBXGroup;
+			children = (
+				21AA0ADA1C2905BF00995D3B /* Socket.h */,
+			);
+			path = NylonSock;
+			sourceTree = "<group>";
+		};
 		21C063531C27F763004A4AAC = {
 			isa = PBXGroup;
 			children = (
@@ -61,8 +87,8 @@
 		21C0635E1C27F763004A4AAC /* NylonSock */ = {
 			isa = PBXGroup;
 			children = (
-				21D1C4E71C27F7B3001D59C8 /* Socket.h */,
-				21C0635F1C27F763004A4AAC /* test.cpp */,
+				21AA0AD41C29053A00995D3B /* test */,
+				21AA0AD31C29052500995D3B /* include */,
 				21C063611C27F763004A4AAC /* NylonSock.1 */,
 			);
 			path = NylonSock;
@@ -119,7 +145,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				21C063601C27F763004A4AAC /* test.cpp in Sources */,
+				21AA0AD61C29054E00995D3B /* test.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

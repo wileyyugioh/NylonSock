@@ -10,20 +10,12 @@
 #define __NylonSock__Socket__
 
 #if defined(unix) || defined(__unix__) || defined(__unix)
-//make sure headers are only included by this header
-#if defined(_SYS_SOCKET_H) || defined(_SYS_TYPES_H) || defined(_NETDB_H) || defined(_UNISTD_H)
-#error Headers should only be included by NylonSock!
-#endif
 #define PLAT_UNIX
 
 #elif defined(__APPLE__)
-#if defined(_SYS_SOCKET_H_) || defined(_SYS_TYPES_H_) || defined(_NETDB_H_) || defined(_UNISTD_H_)
-#error Headers should only be included by NylonSock!
-#endif
 #define PLAT_APPLE
 
 #elif defined(_WIN32)
-
 #define PLAT_WIN
 #endif
 
@@ -37,6 +29,8 @@
 #include <unistd.h>
 #include <sys/fcntl.h>
 #include <arpa/inet.h>
+#include <sys/errno.h>
+#include <stdlib.h>
 
 //make it easier for crossplatform
 constexpr char INVALID_SOCKET = -1;
@@ -47,23 +41,18 @@ constexpr char SOCKET_ERROR = -1;
 #endif
 
 #include <string>
-#include <cstring>
 #include <stdexcept>
 #include <memory>
 #include <vector>
 #include <cmath>
-//debug
-#include <iostream>
 
 namespace NylonSock
 {
     class Error : public std::runtime_error
     {
-        //general exception class
     public:
         Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
         {
-            std::cerr << this->what() << std::endl;
         }
     };
     
@@ -78,7 +67,16 @@ namespace NylonSock
         public:
             SocketWrapper(const addrinfo& res)
             {
-                _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
+                //loop through all of the ai until one works
+                for(auto ptr = &res; ptr != nullptr; ptr = res.ai_next)
+                {
+                    _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
+                    if(_sock != INVALID_SOCKET)
+                    {
+                        break;
+                    }
+                }
+                
                 if(_sock == INVALID_SOCKET)
                 {
                     throw Error("Failed to create socket");
@@ -181,28 +179,16 @@ namespace NylonSock
             _sw = std::make_shared<SocketWrapper>(port);
             
             _info->get()->ai_family = data->ss_family;
-            if(data->ss_family == AF_INET)
-            {
-                //copies that data
-                //I PRAY that freeaddrinfo deletes this malloc!
-                //using malloc instead of new because socket is c
-                _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-                std::memcpy(_info->get()->ai_addr, (sockaddr*)data, sizeof(*_info->get()->ai_addr) );
-                _info->get()->ai_addrlen = sizeof(sockaddr_in);
-                       
-            }
-            else
-            {
-                //ipv6
-                //copies that data
-                //I PRAY that freeaddrinfo deletes this malloc!
-                //using malloc instead of new because sockets is c libraries
-                _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-                std::memcpy(_info->get()->ai_addr, (sockaddr*)data, sizeof(*_info->get()->ai_addr) );
-                _info->get()->ai_addrlen = sizeof(sockaddr_in6);
-            }
+            
+            //copies that data
+            //I PRAY that freeaddrinfo deletes this malloc!
+            //using malloc instead of new because socket is c
+            _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
+            *_info->get()->ai_addr = *(sockaddr*)data;
+            _info->get()->ai_addrlen = sizeof(data->ss_len);
         }
         
+        Socket() = default;
         ~Socket() = default;
         
         const addrinfo* operator->() const
@@ -232,25 +218,32 @@ namespace NylonSock
             return sizeof(_info);
         }
         
+        bool operator ==(const Socket& that) const
+        {
+            return (_info == that._info && _sw == that._sw);
+        }
+        
     };
     
+    const Socket NULL_SOCKET{};
     
     void bind(const Socket& sock)
     {
+        
+        //true
         const int y = 1;
-        for(char i = 0; i < 1; i++)
+        
+        //binds socket to port
+        char success = ::bind(sock, sock->ai_addr, sock->ai_addrlen);
+        if(success == SOCKET_ERROR)
         {
-            //binds socket to port
-            char success = ::bind(sock, sock->ai_addr, sock->ai_addrlen);
-            if(success == SOCKET_ERROR)
+            //try clearning the port
+            if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) ) == SOCKET_ERROR)
             {
-                //try clearning the port
-                if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) ) == SOCKET_ERROR)
-                {
-                    //there is an error
-                    throw Error("Failed to bind socket");
-                }
+                //there is an error
+                throw Error("Failed to bind socket");
             }
+            
         }
     }
     
@@ -283,6 +276,10 @@ namespace NylonSock
         char port = ::accept(sock, (sockaddr*)(&t_data), &t_size);
         if(port == INVALID_SOCKET)
         {
+            if(errno == EAGAIN || errno == EWOULDBLOCK)
+            {
+                return NULL_SOCKET;
+            }
             throw Error("Failed to accept socket");
         }
         
