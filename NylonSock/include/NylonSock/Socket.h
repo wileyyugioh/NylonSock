@@ -20,24 +20,10 @@
 #endif
 
 #if defined(PLAT_UNIX) || defined(PLAT_APPLE)
-
 #define UNIX_HEADER
 #include <sys/socket.h>
-#include <sys/types.h>
-#include <sys/time.h>
 #include <netdb.h>
-#include <unistd.h>
 #include <sys/fcntl.h>
-#include <arpa/inet.h>
-#include <sys/errno.h>
-#include <stdlib.h>
-
-//make it easier for crossplatform
-constexpr char INVALID_SOCKET = -1;
-constexpr char SOCKET_ERROR = -1;
-
-#elif defined(_WIN32)
-#define WIN_HEADER
 #endif
 
 #include <string>
@@ -46,415 +32,87 @@ constexpr char SOCKET_ERROR = -1;
 #include <vector>
 #include <cmath>
 
+//Forward Declaration!
+struct timeval;
+
+
+//THE MEATY STUFF
 namespace NylonSock
 {
     class Error : public std::runtime_error
     {
     public:
-        Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
-        {
-        }
+        Error(std::string what);
     };
     
     class Socket
     {
     private:
         //socket wrapper that manages socket
-        class SocketWrapper
-        {
-        private:
-            int _sock;
-        public:
-            SocketWrapper(const addrinfo& res)
-            {
-                //loop through all of the ai until one works
-                for(auto ptr = &res; ptr != nullptr; ptr = res.ai_next)
-                {
-                    _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
-                    if(_sock != INVALID_SOCKET)
-                    {
-                        break;
-                    }
-                }
-                
-                if(_sock == INVALID_SOCKET)
-                {
-                    throw Error("Failed to create socket");
-                }
-            }
-            
-            SocketWrapper(int sock) : _sock(sock)
-            {
-            };
-            
-            SocketWrapper()
-            {
-                _sock = INVALID_SOCKET;
-            }
-            
-            ~SocketWrapper()
-            {
-#ifdef UNIX_HEADER
-                close(_sock);
-#elif WIN_HEADER
-                closesocket(_sock)
-#endif
-            }
-            
-            operator int()
-            {
-                return get();
-            }
-            
-            int get() const
-            {
-                return _sock;
-            }
-        };
-        
-        class AddrWrapper
-        {
-        private:
-            addrinfo* _info;
-        public:
-            AddrWrapper(const char* node, const char* service, const addrinfo* hints)
-            {
-                
-                _info = {0};
-                char success = ::getaddrinfo(node, service, hints, &_info);
-                if(success != 0)
-                {
-                    throw Error(std::string{"Failed to get addrinfo: "} + gai_strerror(success) );
-                }
-            }
-            
-            AddrWrapper()
-            {
-                //pray this gets deallocated by freeaddrinfo
-                _info = new addrinfo;
-            }
-            
-            ~AddrWrapper()
-            {
-                freeaddrinfo(_info);
-            }
-            
-            operator addrinfo*() const
-            {
-                return get();
-            }
-            
-            addrinfo* operator->() const
-            {
-                return get();
-            }
-            
-            addrinfo* get() const
-            {
-                return _info;
-            }
-        };
+        class SocketWrapper;
+        class AddrWrapper;
         
         std::shared_ptr<AddrWrapper> _info;
         std::shared_ptr<SocketWrapper> _sw;
     public:
-        Socket(const char* node, const char* service, const addrinfo* hints)
-        {
-            _info = std::make_shared<AddrWrapper>(node, service, hints);
-            
-            //socket creation
-            _sw = std::make_shared<SocketWrapper>(*_info->get() );
-        }
-        
-        Socket(std::string node, std::string service, const addrinfo* hints) : Socket(node.c_str(), service.c_str(), hints)
-        {
-        }
-        
-        Socket(const sockaddr_storage* data, int port)
-        {
-            //gotta allocate that memory yo
-            _info = std::make_shared<AddrWrapper>();
-            
-            //sets socket
-            _sw = std::make_shared<SocketWrapper>(port);
-            
-            _info->get()->ai_family = data->ss_family;
-            
-            //copies that data
-            //I PRAY that freeaddrinfo deletes this malloc!
-            //using malloc instead of new because socket is c
-            _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-            *_info->get()->ai_addr = *(sockaddr*)data;
-            _info->get()->ai_addrlen = sizeof(data->ss_len);
-        }
-        
+        Socket(const char* node, const char* service, const addrinfo* hints);
+        Socket(std::string node, std::string service, const addrinfo* hints);
+        Socket(const sockaddr_storage* data, int port);
         Socket() = default;
         ~Socket() = default;
         
-        const addrinfo* operator->() const
-        {
-            //returns socket info
-            return get();
-        }
-        
-        const addrinfo* get() const
-        {
-            return *_info.get();
-        }
-        
-        operator int() const
-        {
-            return port();
-        }
-        
-        int port() const
-        {
-            return *_sw.get();
-        }
-        
-        size_t size() const
-        {
-            //returns size of addrinfo
-            return sizeof(_info);
-        }
-        
-        bool operator ==(const Socket& that) const
-        {
-            return (_info == that._info && _sw == that._sw);
-        }
-        
+        const addrinfo* operator->() const;
+        const addrinfo* get() const;
+        int port() const;
+        size_t size() const;
+        bool operator ==(const Socket& that) const;
     };
     
     const Socket NULL_SOCKET{};
     
-    void bind(const Socket& sock)
-    {
-        
-        //true
-        const int y = 1;
-        
-        //binds socket to port
-        char success = ::bind(sock, sock->ai_addr, sock->ai_addrlen);
-        if(success == SOCKET_ERROR)
-        {
-            //try clearning the port
-            if(setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) ) == SOCKET_ERROR)
-            {
-                //there is an error
-                throw Error("Failed to bind socket");
-            }
-            
-        }
-    }
+    void bind(const Socket& sock);
     
-    void connect(const Socket& sock)
-    {
-        //connects socket to host
-        char success = ::connect(sock, sock->ai_addr, sock->ai_addrlen);
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to connect to socket");
-        }
-    }
+    void connect(const Socket& sock);
     
-    void listen(const Socket& sock, unsigned char backlog)
-    {
-        char success = ::listen(sock, static_cast<int>(backlog) );
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to listen to socket");
-        }
-    }
+    void listen(const Socket& sock, unsigned char backlog);
     
-    Socket accept(const Socket& sock)
-    {
-        //0 initialized again!
-        //we also want that ipv6
-        sockaddr_storage t_data = {0};
-        socklen_t t_size = sizeof(t_data);
-        //                         I really don't like c casts...
-        char port = ::accept(sock, (sockaddr*)(&t_data), &t_size);
-        if(port == INVALID_SOCKET)
-        {
-            if(errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                return NULL_SOCKET;
-            }
-            throw Error("Failed to accept socket");
-        }
-        
-        return {&t_data, port};
-    }
+    Socket accept(const Socket& sock);
     
-    size_t send(const Socket& sock, const void* buf, size_t len, int flags)
-    {
-        //returns amount of data sent
-        //may not equal total amount of data!
-        auto size = ::send(sock, buf, len, flags);
-        if(size == SOCKET_ERROR)
-        {
-            throw Error("Failed to send data to socket");
-        }
-        
-        return size;
-    }
+    size_t send(const Socket& sock, const void* buf, size_t len, int flags);
     
-    size_t recv(const Socket& sock, void* buf, size_t len, int flags)
-    {
-        auto size = ::recv(sock, buf, len, flags);
-        if(size == SOCKET_ERROR)
-        {
-            throw Error("Failed to receive data from socket");
-        }
-        else if(size == 0)
-        {
-            throw Error("Recieve has failed due to socket being closed");
-        }
-        
-        return size;
-    }
+    size_t recv(const Socket& sock, void* buf, size_t len, int flags);
     
-    size_t sendto(const Socket& sock, const void* buf, size_t len, unsigned int flags, const Socket& dest)
-    {
-        auto size = ::sendto(sock, buf, len, flags, dest->ai_addr, dest->ai_addrlen);
-        if(size == SOCKET_ERROR)
-        {
-            throw Error("Failed to sendto data to socket");
-        }
-        
-        return size;
-    }
+    size_t sendto(const Socket& sock, const void* buf, size_t len, unsigned int flags, const Socket& dest);
     
-    size_t recvfrom(const Socket& sock, void* buf, size_t len, unsigned int flags, const Socket& dest)
-    {
-        auto rm_const = dest->ai_addrlen;
-        auto size = ::recvfrom(sock, buf, len, flags, dest->ai_addr, &rm_const);
-        if(size == SOCKET_ERROR)
-        {
-            throw Error("Failed to recvfrom data from destination");
-        }
-        
-        return size;
-    }
+    size_t recvfrom(const Socket& sock, void* buf, size_t len, unsigned int flags, const Socket& dest);
     
-    Socket getpeername(const Socket& sock)
-    {
-        //0 initialized again!
-        //we also want that ipv6
-        sockaddr_storage t_data = {0};
-        socklen_t t_size = sizeof(t_data);
-        //                         I really don't like c casts...
-        char port = ::getpeername(sock, (sockaddr*)(&t_data), &t_size);
-        if(port == SOCKET_ERROR)
-        {
-            throw Error("Failed to get peername");
-        }
-        
-        return {&t_data, port};
-    }
+    Socket getpeername(const Socket& sock);
     
-    std::string gethostname()
-    {
-        constexpr size_t BUFFER_SIZE = 256;
-        char name[BUFFER_SIZE];
-        
-        char success = ::gethostname(name, sizeof(name) );
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to get hostname");
-        }
-        
-        return {name};
-    }
+    std::string gethostname();
     
-    void fcntl(const Socket& sock, long args)
-    {
-        constexpr int SOCKET_TYPE = F_SETFL;
-        if(args != O_NONBLOCK && args != O_ASYNC)
-        {
-            throw Error("Arg to fcntl is not O_NONBLOCK or O_ASYNC");
-        }
-        
-        char success = ::fcntl(sock, SOCKET_TYPE, args);
-        
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to fcntl socket");
-        }
-        
-    }
+    void fcntl(const Socket& sock, long args);
     
     class FD_Set
     {
     private:
-        fd_set _set;
+        class FD_Wrap;
+        
+        std::unique_ptr<FD_Wrap> _set;
         std::vector<int> _sock;
         static bool cpy_exist;
     public:
-        void set(const Socket& sock)
-        {
-            FD_SET(sock, &_set);
-            _sock.push_back(sock);
-            
-            //sorts it automatically
-            std::sort(_sock.begin(), _sock.end() );
-        }
+        void set(const Socket& sock);
+        void clr(const Socket& sock);
+        void zero();
+        bool isset(const Socket& sock) const;
+        int getMax();
         
-        void clr(const Socket& sock)
-        {
-            FD_CLR(sock, &_set);
-            _sock.erase(std::remove(_sock.begin(), _sock.end(), sock), _sock.end() );
-        }
-        
-        void zero()
-        {
-            FD_ZERO(&_set);
-            _sock.clear();
-        }
-        
-        bool isset(const Socket& sock) const
-        {
-            return FD_ISSET(sock, &_set);
-        }
-        
-        FD_Set()
-        {
-            //only one copy of FD_Set exists at a time
-            if(cpy_exist)
-            {
-                throw Error("Only one instance of FD_Set should exist at a time");
-            }
-            
-            cpy_exist = true;
-        }
-        
-        ~FD_Set()
-        {
-            zero();
-            cpy_exist = false;
-        }
-        
-        int getMax() const
-        {
-            return _sock.back();
-        }
+        FD_Set() = default;
+        ~FD_Set() = default;
     };
     
-    std::vector<fd_set> select(const FD_Set& set, timeval timeout)
-    {
-        constexpr char NUM_DATA = 3;
-        std::vector<fd_set> data;
-        data.resize(NUM_DATA);
-        
-        //                                        read      write     except
-        char success = ::select(set.getMax() + 1, &data[0], &data[1], &data[2], &timeout);
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to select ports");
-        }
-        
-        return data;
-    }
+    //not const reference because set.getMax needs to sort the array!
+    std::vector<fd_set> select(FD_Set& set, timeval timeout);
     
     class TimeVal
     {
@@ -462,42 +120,14 @@ namespace NylonSock
         int _tv_sec;
         int _tv_usec;
     public:
-        TimeVal(unsigned int milli)
-        {
-            //find seconds
-            _tv_sec = floor(milli / 1000);
-            _tv_usec = (milli % 1000) * 1000;
-        }
+        TimeVal(unsigned int milli);
         
-        operator timeval() const
-        {
-            return {_tv_sec, _tv_usec};
-        }
+        operator timeval() const;
     };
     
-    void setsockopt(const Socket& sock, int level, int optname,
-                    const void *optval, socklen_t optlen)
-    {
-        char success = ::setsockopt(sock, level, optname, optval, optlen);
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to setsockopt");
-        }
-    }
+    void setsockopt(const Socket& sock, int level, int optname, const void *optval, socklen_t optlen);
     
-    std::string inet_ntop(const Socket& sock)
-    {
-        constexpr size_t DATA_SIZE = 256;
-        char data[DATA_SIZE];
-        
-        auto success = ::inet_ntop(sock->ai_family, sock->ai_addr , data, sizeof(data) );
-        if(success == nullptr)
-        {
-            throw Error("Failed to inet_ntop");
-        }
-        
-        return {data};
-    }
+    std::string inet_ntop(const Socket& sock);
     
 }
 

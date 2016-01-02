@@ -8,7 +8,6 @@
 
 #include "NylonSock.hpp"
 
-#include <thread>
 #include <iostream>
 
 int main(int argc, const char * argv[])
@@ -22,7 +21,7 @@ int main(int argc, const char * argv[])
      
      using namespace NylonSock;
      Socket sock{nullptr, port, &hints};
-     NylonSock::fcntl(sock, O_NONBLOCK);
+     fcntl(sock, O_NONBLOCK);
      
      std::cout << O_NONBLOCK << std::endl;
      
