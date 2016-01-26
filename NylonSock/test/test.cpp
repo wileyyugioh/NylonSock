@@ -10,8 +10,12 @@
 
 #include <iostream>
 
+//for sleep
+#include <unistd.h>
+
 int main(int argc, const char * argv[])
 {
+    /*
      constexpr char port[] = "3490";
      
      addrinfo hints = {0};
@@ -31,7 +35,7 @@ int main(int argc, const char * argv[])
      std::cout << "Waiting for connections" << std::endl;
      std::cout << "Remote host name is: " << NylonSock::gethostname() << std::endl;
      
-     std::cout << "Type into terminal: \"telnet **hostname** " << port << "!" << std::endl;
+     std::cout << "Type into terminal: telnet " << NylonSock::gethostname() << " " << port << "!" << std::endl;
      
      while(true)
      {
@@ -46,5 +50,22 @@ int main(int argc, const char * argv[])
      
      break;
      }
+     
+    */
+    /*
+    using namespace NylonSock;
+    std::cout << gethostname() << std::endl;
+    Server serv{3490};
+    serv.onConnect([](ClientSocket sock)
+                   {
+                       std::cout << "hi" << std::endl;
+                   });
+    
+    while(serv.count() == 0)
+    {
+        serv.update();
+        sleep(1);
+    }
+     */
 }
 

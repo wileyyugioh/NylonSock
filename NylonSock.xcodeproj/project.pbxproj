@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		217220D81C4EED7C006933C4 /* Sustainable.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 217220D61C4EED7C006933C4 /* Sustainable.cpp */; };
 		21AA0AD61C29054E00995D3B /* test.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 21AA0AD51C29054E00995D3B /* test.cpp */; };
 		21AC12AD1C377D84009042E4 /* Socket.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 21AC12AC1C377D84009042E4 /* Socket.cpp */; };
 		21C063621C27F763004A4AAC /* NylonSock.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 21C063611C27F763004A4AAC /* NylonSock.1 */; };
@@ -26,6 +27,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		217220D61C4EED7C006933C4 /* Sustainable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Sustainable.cpp; sourceTree = "<group>"; };
+		217220D71C4EED7C006933C4 /* Sustainable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sustainable.h; sourceTree = "<group>"; };
 		21AA0AD51C29054E00995D3B /* test.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = test.cpp; sourceTree = "<group>"; };
 		21AA0AD81C29056200995D3B /* NylonSock.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = NylonSock.hpp; sourceTree = "<group>"; };
 		21AA0ADA1C2905BF00995D3B /* Socket.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Socket.h; sourceTree = "<group>"; };
@@ -67,6 +70,8 @@
 			children = (
 				21AA0ADA1C2905BF00995D3B /* Socket.h */,
 				21AC12AC1C377D84009042E4 /* Socket.cpp */,
+				217220D61C4EED7C006933C4 /* Sustainable.cpp */,
+				217220D71C4EED7C006933C4 /* Sustainable.h */,
 			);
 			path = NylonSock;
 			sourceTree = "<group>";
@@ -123,7 +128,7 @@
 		21C063541C27F763004A4AAC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0510;
+				LastUpgradeCheck = 0720;
 				ORGANIZATIONNAME = "Wiley Yu";
 			};
 			buildConfigurationList = 21C063571C27F763004A4AAC /* Build configuration list for PBXProject "NylonSock" */;
@@ -149,6 +154,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				21AC12AD1C377D84009042E4 /* Socket.cpp in Sources */,
+				217220D81C4EED7C006933C4 /* Sustainable.cpp in Sources */,
 				21AA0AD61C29054E00995D3B /* test.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -173,6 +179,7 @@
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
+				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
@@ -188,6 +195,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$PROJECT_DIR/Resources/RapidJSON\\ 1.0.2/include";
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
@@ -221,6 +229,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = "$PROJECT_DIR/Resources/RapidJSON\\ 1.0.2/include";
 				MACOSX_DEPLOYMENT_TARGET = 10.8;
 				SDKROOT = macosx;
 			};

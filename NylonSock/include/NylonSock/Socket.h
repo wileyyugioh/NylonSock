@@ -31,6 +31,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <set>
 
 //Forward Declaration!
 struct timeval;
@@ -98,21 +99,23 @@ namespace NylonSock
         class FD_Wrap;
         
         std::unique_ptr<FD_Wrap> _set;
-        std::vector<int> _sock;
-        static bool cpy_exist;
+        //sets are sorted. hurrah!
+        std::set<int> _sock;
     public:
         void set(const Socket& sock);
+        void set(fd_set& set);
         void clr(const Socket& sock);
         void zero();
         bool isset(const Socket& sock) const;
-        int getMax();
+        int getMax() const;
         
-        FD_Set() = default;
-        ~FD_Set() = default;
+        FD_Set();
+        ~FD_Set();
+        FD_Set(const FD_Set& that);
     };
     
     //not const reference because set.getMax needs to sort the array!
-    std::vector<fd_set> select(FD_Set& set, timeval timeout);
+    std::vector<FD_Set> select(FD_Set& set, timeval timeout);
     
     class TimeVal
     {

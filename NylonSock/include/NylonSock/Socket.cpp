@@ -364,7 +364,10 @@ namespace NylonSock
             std::swap(that._set, thus._set);
         }
     public:
-        FD_Wrap() = default;
+        FD_Wrap()
+        {
+            _set = std::make_unique<fd_set>();
+        };
         
         FD_Wrap(const FD_Wrap& that)
         {
@@ -388,6 +391,11 @@ namespace NylonSock
             FD_ZERO(_set.get() );
         }
         
+        void set(const fd_set& set)
+        {
+            *_set = set;
+        }
+        
         fd_set* get()
         {
             return _set.get();
@@ -399,19 +407,34 @@ namespace NylonSock
         }
     };
     
+    FD_Set::FD_Set()
+    {
+        _set = std::make_unique<FD_Wrap>();
+        
+    };
+    FD_Set::~FD_Set() = default;
+    
+    FD_Set::FD_Set(const FD_Set& that)
+    {
+        *_set = *that._set;
+        _sock = that._sock;
+    }
+    
     void FD_Set::set(const Socket& sock)
     {
         FD_SET(sock.port(), _set->get() );
-        _sock.push_back(sock.port() );
-        
-        //sorts it automatically
-        std::sort(_sock.begin(), _sock.end() );
+        _sock.insert(sock.port() );
+    }
+    
+    void FD_Set::set(fd_set& set)
+    {
+        _set->set(set);
     }
     
     void FD_Set::clr(const Socket& sock)
     {
         FD_CLR(sock.port(), _set->get() );
-        _sock.erase(std::remove(_sock.begin(), _sock.end(), sock.port() ), _sock.end() );
+        _sock.erase(sock.port() );
     }
     
     void FD_Set::zero()
@@ -425,15 +448,12 @@ namespace NylonSock
         return FD_ISSET(sock.port(), _set->get() );
     }
     
-    int FD_Set::getMax()
+    int FD_Set::getMax() const
     {
-        return _sock.back();
+        return *_sock.rbegin();
     }
     
-    //Lets go define cpy_exist right now
-    bool FD_Set::cpy_exist = false;
-    
-    std::vector<fd_set> select(FD_Set& set, timeval timeout)
+    std::vector<FD_Set> select(FD_Set& set, timeval timeout)
     {
         constexpr char NUM_DATA = 3;
         std::vector<fd_set> data;
@@ -446,7 +466,15 @@ namespace NylonSock
             throw Error("Failed to select ports");
         }
         
-        return data;
+        std::vector<FD_Set> fds_data;
+        fds_data.resize(NUM_DATA);
+        
+        for(char i = 0; i < NUM_DATA; i++)
+        {
+            fds_data[i].set(data[i]);
+        }
+        
+        return fds_data;
     }
     
     TimeVal::TimeVal(unsigned int milli)

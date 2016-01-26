@@ -10,5 +10,6 @@
 #define NylonSock_NylonSock_hpp
 
 #include "NylonSock/Socket.h"
+#include "NylonSock/Sustainable.h"
 
 #endif
