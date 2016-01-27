@@ -39,10 +39,11 @@ namespace NylonSock
         int _sock;
         
     public:
-        SocketWrapper(const addrinfo& res)
+        SocketWrapper(addrinfo& res)
         {
             //loop through all of the ai until one works
-            for(auto ptr = &res; ptr != nullptr; ptr = res.ai_next)
+            addrinfo* ptr;
+            for(ptr = &res; ptr != nullptr; ptr = res.ai_next)
             {
                 _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
                 if(_sock != INVALID_SOCKET)
@@ -55,6 +56,8 @@ namespace NylonSock
             {
                 throw Error("Failed to create socket");
             }
+            
+            res = *ptr;
         }
         
         SocketWrapper(int sock) : _sock(sock)
@@ -98,6 +101,7 @@ namespace NylonSock
     class Socket::AddrWrapper
     {
     private:
+        addrinfo* _orig;
         addrinfo* _info;
     public:
         AddrWrapper(const char* node, const char* service, const addrinfo* hints)
@@ -109,17 +113,22 @@ namespace NylonSock
             {
                 throw Error(std::string{"Failed to get addrinfo: "} + gai_strerror(success) );
             }
+            
+            _orig = _info;
         }
         
         AddrWrapper()
         {
-            //pray this gets deallocated by freeaddrinfo
-            _info = new addrinfo;
+            //pray this gets freed
+            //have to use malloc because this is a c library?
+            _info = (addrinfo*)(malloc(sizeof(addrinfo) ) );
         }
         
         ~AddrWrapper()
         {
-            freeaddrinfo(_info);
+            freeaddrinfo(_orig);
+            _info = nullptr;
+            _orig = nullptr;
         }
         
         AddrWrapper(const AddrWrapper& that) = delete;
@@ -139,6 +148,12 @@ namespace NylonSock
         
         addrinfo* get() const
         {
+            return _info;
+        }
+        
+        addrinfo* next()
+        {
+            _info = _info->ai_next;
             return _info;
         }
     };
