@@ -36,6 +36,7 @@ public:
 int main(int argc, const char * argv[])
 {
     using namespace NylonSock;
+    
     std::cout << gethostname() << std::endl;
     Server<TestClientSock> serv{3490};
     serv.onConnect([](TestClientSock& sock)
@@ -52,11 +53,7 @@ int main(int argc, const char * argv[])
                   std::cout << data.getRaw() << std::endl;
               });
     
-    for(int i = 0; i < 100; i++)
-    {
-        serv.update();
-        client.update();
-        sleep(1);
-    }
+    serv.update();
+    client.update();
 }
 

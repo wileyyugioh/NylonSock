@@ -448,6 +448,14 @@ namespace NylonSock
     void FD_Set::set(fd_set& set)
     {
         _set->set(set);
+        for(auto& it : set.fds_bits)
+        {
+            if(it != 0)
+            {
+                _sock.insert(it);
+                
+            }
+        }
     }
     
     void FD_Set::clr(const Socket& sock)
@@ -477,11 +485,16 @@ namespace NylonSock
         return _sock.size();
     }
     
-    std::vector<FD_Set> select(FD_Set& set, timeval timeout)
+    fd_set FD_Set::get() const
+    {
+        return *_set->get();
+    }
+    
+    std::vector<FD_Set> select(const FD_Set& set, timeval timeout)
     {
         constexpr char NUM_DATA = 3;
         std::vector<fd_set> data;
-        data.resize(NUM_DATA);
+        data.resize(NUM_DATA, set.get() );
         
         //                                        read      write     except
         char success = ::select(set.getMax() + 1, &data[0], &data[1], &data[2], &timeout);

@@ -123,54 +123,51 @@ namespace NylonSock
     
     void recvData(Socket& sock, std::unordered_map<std::string, SockFunc>& _functions)
     {
-        while(true)
+        uint32_t datalen, messagelen;
+        
+        //recieves data from client
+        //also assumes socket is non blocking
+        char success = recv(sock, &datalen, sizeint32, NULL);
+        
+        //break when there is no info
+        if(success <= 0)
         {
-            uint32_t datalen, messagelen;
-            
-            //recieves data from client
-            //also assumes socket is non blocking
-            char success = recv(sock, &datalen, sizeint32, NULL);
-            
-            //break when there is no info
-            if(success == 0)
-            {
-                break;
-            }
-            
-            //receive message length
-            recv(sock, &messagelen, sizeint32, NULL);
-            
-            //convert to host language
-            datalen = ntohl(datalen);
-            messagelen = ntohl(messagelen);
-            
-            //allocate buffers!
-            std::vector<uint8_t> message, data;
-            
-            message.resize(messagelen, 0);
-            data.resize(datalen, 0);
-            
-            //receive message data
-            recv(sock, &(message[0]), messagelen, NULL);
-            
-            //receive data data
-            recv(sock, &(data[0]), datalen, NULL);
-            
-            std::string messagestr, datastr;
-            
-            //copy data into string
-            messagestr.assign(message.begin(), message.end() );
-            datastr.assign(data.begin(), data.end() );
-            
-            //if the event is in the functions
-            if(_functions.count(messagestr) != 0)
-            {
-                //call it
-                _functions[messagestr](SockData{datastr});
-            }
-            
-            //else, the data gets thrown away
+            return;
         }
+        
+        //receive message length
+        recv(sock, &messagelen, sizeint32, NULL);
+        
+        //convert to host language
+        datalen = ntohl(datalen);
+        messagelen = ntohl(messagelen);
+        
+        //allocate buffers!
+        std::vector<uint8_t> message, data;
+        
+        message.resize(messagelen, 0);
+        data.resize(datalen, 0);
+        
+        //receive message data
+        recv(sock, &(message[0]), messagelen, NULL);
+        
+        //receive data data
+        recv(sock, &(data[0]), datalen, NULL);
+        
+        std::string messagestr, datastr;
+        
+        //copy data into string
+        messagestr.assign(message.begin(), message.end() );
+        datastr.assign(data.begin(), data.end() );
+        
+        //if the event is in the functions
+        if(_functions.count(messagestr) != 0)
+        {
+            //call it
+            _functions[messagestr](SockData{datastr});
+        }
+        
+        //else, the data gets thrown away
     }
     
     void ClientSocket::update()
@@ -184,13 +181,16 @@ namespace NylonSock
         
         auto x = select(*_self_fd, TimeVal{1000});
         
-        //see if we can recv
-        if(select(*_self_fd, TimeVal{1000})[0].size() == -1)
+        while(true)
         {
-            return;
+            //see if we can recv
+            if(select(*_self_fd, TimeVal{1000})[0].size() <= 0)
+            {
+                return;
+            }
+            
+            recvData(*_client, _functions);
         }
-        
-        recvData(*_client, _functions);
     }
     
     ClientSocket::ClientSocket(Socket sock)

@@ -109,6 +109,7 @@ namespace NylonSock
         void zero();
         bool isset(const Socket& sock) const;
         int getMax() const;
+        fd_set get() const;
         
         //returns size of set
         size_t size() const;
@@ -124,7 +125,7 @@ namespace NylonSock
     //0 = read
     //1 = write
     //2 = except
-    std::vector<FD_Set> select(FD_Set& set, timeval timeout);
+    std::vector<FD_Set> select(const FD_Set& set, timeval timeout);
     
     class TimeVal
     {
