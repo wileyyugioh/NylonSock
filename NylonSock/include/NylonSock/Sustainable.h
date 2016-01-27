@@ -42,7 +42,17 @@ namespace NylonSock
         std::string getRaw() const;
     };
     
-    class ClientSocket
+    class ClientInterface
+    {
+    public:
+        virtual ~ClientInterface() = default;
+        virtual void on(std::string event_name, SockFunc func) = 0;
+        virtual void emit(std::string event_name, const SockData& data) = 0;
+        virtual void update() = 0;
+        
+    };
+    
+    class ClientSocket : public ClientInterface
     {
     private:
         std::unique_ptr<Socket> _client;
@@ -51,9 +61,9 @@ namespace NylonSock
     public:
         ClientSocket(Socket sock);
         virtual ~ClientSocket() = default;
-        virtual void on(std::string event_name, SockFunc func);
-        virtual void emit(std::string event_name, const SockData& data);
-        virtual void update();
+        void on(std::string event_name, SockFunc func) override;
+        void emit(std::string event_name, const SockData& data) override;
+        void update() override;
     };
     
     //dummy
@@ -147,18 +157,26 @@ namespace NylonSock
         };
     };
     
-    class Client
+    //I really don't want to do any more work
+    class Client : public ClientInterface
     {
     private:
         //see top of cpp file to see how data is sent
         std::unique_ptr<Socket> _server;
+        
+        //client socket has similar interface
+        std::unique_ptr<ClientSocket> _inter;
+        
+        void createListener(std::string ip, std::string port);
     public:
-        Client(std::string port);
-        Client(int port);
+        Client(std::string ip, std::string port);
+        Client(std::string ip, int port);
+        ~Client();
         
-        void on(std::string event_name, SockFunc func);
-        
-        void emit(std::string event_name, const SockData& data) const;
+        void on(std::string event_name, SockFunc func) override;
+        void emit(std::string event_name, const SockData& data) override;
+        void update() override;
+
     };
 }
 

@@ -272,9 +272,13 @@ namespace NylonSock
     size_t recv(const Socket& sock, void* buf, size_t len, int flags)
     {
         auto size = ::recv(sock.port(), buf, len, flags);
-        if(size == SOCKET_ERROR)
+        if(size == SOCKET_ERROR && errno != EWOULDBLOCK)
         {
             throw Error(std::string{"Failed to receive data from socket."});
+        }
+        else if(size == SOCKET_ERROR && errno == EWOULDBLOCK)
+        {
+            return 0;
         }
         else if(size == 0)
         {

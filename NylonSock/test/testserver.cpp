@@ -13,6 +13,17 @@
 //for sleep
 #include <unistd.h>
 
+constexpr const char MYIP[] = "192.168.29.114";
+
+class InClient : public NylonSock::Client
+{
+public:
+    InClient(std::string ip, int port) : Client(ip, port)
+    {
+        std::cout << "ay?" << std::endl;
+    }
+};
+
 class TestClientSock : public NylonSock::ClientSocket
 {
 public:
@@ -30,14 +41,22 @@ int main(int argc, const char * argv[])
     serv.onConnect([](TestClientSock& sock)
                    {
                        sock.emit("AAA", {"hi"});
+                       std::cout << "emiiting" << std::endl;
                    });
     
-    while(serv.count() == 0)
+    //test client?
+    InClient client{MYIP, 3490};
+    client.on("AAA", [](SockData data)
+              {
+                  std::cout << "A" << std::endl;
+                  std::cout << data.getRaw() << std::endl;
+              });
+    
+    for(int i = 0; i < 100; i++)
     {
         serv.update();
+        client.update();
         sleep(1);
     }
-    
-    //test client?
 }
 

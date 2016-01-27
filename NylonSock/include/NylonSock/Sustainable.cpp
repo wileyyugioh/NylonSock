@@ -67,21 +67,47 @@ namespace NylonSock
         send(socket, raw_data.c_str(), raw_data.size(), NULL);
     }
     
-    Client::Client(std::string port) : Client(std::stoi(port) )
+    //defaults makes hints
+    void Client::createListener(std::string ip, std::string port)
+    {
+        addrinfo hints = {0};
+        hints.ai_family = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        
+        _server = std::make_unique<Socket>(ip, port, &hints);
+        connect(*_server);
+        
+        auto x = inet_ntop(*_server);
+        
+    }
+    
+    //todo finish this
+    Client::Client(std::string ip, std::string port)
+    {
+        createListener(ip, port);
+        _inter = std::make_unique<ClientSocket>(*_server);
+    }
+    
+    Client::Client(std::string ip, int port) : Client(ip, std::to_string(port) )
     {
         
     }
     
-    Client::Client(int port)
+    Client::~Client() = default;
+    
+    void Client::on(std::string event_name, SockFunc func)
     {
-        
+        _inter->on(event_name, func);
     }
     
-    void Client::emit(std::string event_name, const SockData& data) const
+    void Client::emit(std::string event_name, const NylonSock::SockData &data)
     {
-        //sends data to server
-        emitSend(event_name, data, *_server);
-        
+        _inter->emit(event_name, data);
+    }
+    
+    void Client::update()
+    {
+        _inter->update();
     }
     
     void ClientSocket::emit(std::string event_name, const NylonSock::SockData &data)
@@ -105,8 +131,8 @@ namespace NylonSock
             //also assumes socket is non blocking
             char success = recv(sock, &datalen, sizeint32, NULL);
             
-            //break in case of errors
-            if(success == -1)
+            //break when there is no info
+            if(success == 0)
             {
                 break;
             }
@@ -156,8 +182,10 @@ namespace NylonSock
             _self_fd->set(*_client);
         }
         
-        //see if there is any need to recv
-        if(select(*_self_fd, TimeVal{1000})[0].size() == 0)
+        auto x = select(*_self_fd, TimeVal{1000});
+        
+        //see if we can recv
+        if(select(*_self_fd, TimeVal{1000})[0].size() == -1)
         {
             return;
         }

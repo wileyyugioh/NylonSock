@@ -119,6 +119,11 @@ namespace NylonSock
     };
     
     //not const reference because set.getMax needs to sort the array!
+    
+    //select
+    //0 = read
+    //1 = write
+    //2 = except
     std::vector<FD_Set> select(FD_Set& set, timeval timeout);
     
     class TimeVal
