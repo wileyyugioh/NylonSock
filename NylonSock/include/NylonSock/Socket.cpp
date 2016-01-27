@@ -6,6 +6,8 @@
 //  Copyright (c) 2016 Wiley Yu. All rights reserved.
 //
 
+#include "Definitions.h"
+
 #include "Socket.h"
 
 #if defined(UNIX_HEADER)
@@ -22,7 +24,6 @@ constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
 
 #elif defined(_WIN32)
-#define WIN_HEADER
 //still need to add windows suppport
 #endif
 
@@ -32,13 +33,22 @@ namespace NylonSock
     {
     }
     
+    Error::Error(std::string what, bool null) : std::runtime_error(what)
+    {
+    }
+    
     //needs to be in shared ptr
     class Socket::SocketWrapper
     {
     private:
+#ifndef PLAT_WIN
         int _sock;
+#else
+        SOCKET _sock;
+#endif
         
     public:
+#ifndef PLAT_WIN
         SocketWrapper(addrinfo& res)
         {
             //loop through all of the ai until one works
@@ -63,7 +73,22 @@ namespace NylonSock
         SocketWrapper(int sock) : _sock(sock)
         {
             
-        };
+        }
+#else
+        SocketWrapper(int iFamily, int iType, int iProto)
+        {
+            _sock = socket(iFamily, iType, iProto);
+            if(_sock == INVALID_SOCKET)
+            {
+                throw Error("Failed to create socket");
+            }
+        }
+        
+        SocketWrapper(SOCKET sock) : _sock(sock)
+        {
+            
+        }
+#endif
         
         SocketWrapper()
         {
@@ -80,11 +105,12 @@ namespace NylonSock
         {
 #ifdef UNIX_HEADER
             close(_sock);
-#elif WIN_HEADER
+#elif PLAT_WIN
             closesocket(_sock)
 #endif
         }
         
+#ifndef PLAT_WIN
         operator int()
         {
             return get();
@@ -94,6 +120,17 @@ namespace NylonSock
         {
             return _sock;
         }
+#else
+        operator SOCKET()
+        {
+            return get();
+        }
+        
+        SOCKET get() const
+        {
+            return _sock;
+        }
+#endif
         
     };
     
@@ -122,6 +159,7 @@ namespace NylonSock
             //pray this gets freed
             //have to use malloc because this is a c library?
             _info = (addrinfo*)(malloc(sizeof(addrinfo) ) );
+            _orig = _info;
         }
         
         ~AddrWrapper()
@@ -200,10 +238,17 @@ namespace NylonSock
         return *_info.get();
     }
     
+#ifndef PLAT_WIN
     int Socket::port() const
     {
         return *_sw.get();
     }
+#else
+    SOCKET Socket::port() const
+    {
+        return *_sw.get();
+    }
+#endif
     
     size_t Socket::size() const
     {
@@ -436,18 +481,24 @@ namespace NylonSock
     FD_Set::FD_Set(const FD_Set& that)
     {
         *_set = *that._set;
+#ifndef PLAT_WIN
         _sock = that._sock;
+#endif
     }
     
     void FD_Set::set(const Socket& sock)
     {
         FD_SET(sock.port(), _set->get() );
+#ifndef PLAT_WIN
         _sock.insert(sock.port() );
+#endif
     }
     
     void FD_Set::set(fd_set& set)
     {
         _set->set(set);
+        //watch out! fd_set structure is platform dependent
+#if defined(PLAT_APPLE)
         for(auto& it : set.fds_bits)
         {
             if(it != 0)
@@ -456,18 +507,23 @@ namespace NylonSock
                 
             }
         }
+#endif
     }
     
     void FD_Set::clr(const Socket& sock)
     {
         FD_CLR(sock.port(), _set->get() );
+#ifndef PLAT_WIN
         _sock.erase(sock.port() );
+#endif
     }
     
     void FD_Set::zero()
     {
         FD_ZERO(_set->get() );
+#ifndef PLAT_WIN
         _sock.clear();
+#endif
     }
     
     bool FD_Set::isset(const Socket& sock) const
@@ -475,6 +531,7 @@ namespace NylonSock
         return FD_ISSET(sock.port(), _set->get() );
     }
     
+#ifndef PLAT_WIN
     int FD_Set::getMax() const
     {
         return *_sock.rbegin();
@@ -484,6 +541,7 @@ namespace NylonSock
     {
         return _sock.size();
     }
+#endif
     
     fd_set FD_Set::get() const
     {

@@ -27,6 +27,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		21053E1D1C589640004344C3 /* Definitions.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Definitions.h; sourceTree = "<group>"; };
 		217220D61C4EED7C006933C4 /* Sustainable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Sustainable.cpp; sourceTree = "<group>"; };
 		217220D71C4EED7C006933C4 /* Sustainable.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sustainable.h; sourceTree = "<group>"; };
 		21AA0AD51C29054E00995D3B /* testserver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = testserver.cpp; sourceTree = "<group>"; };
@@ -72,6 +73,7 @@
 				21AC12AC1C377D84009042E4 /* Socket.cpp */,
 				217220D61C4EED7C006933C4 /* Sustainable.cpp */,
 				217220D71C4EED7C006933C4 /* Sustainable.h */,
+				21053E1D1C589640004344C3 /* Definitions.h */,
 			);
 			path = NylonSock;
 			sourceTree = "<group>";

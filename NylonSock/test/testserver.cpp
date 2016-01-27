@@ -41,7 +41,7 @@ int main(int argc, const char * argv[])
     Server<TestClientSock> serv{3490};
     serv.onConnect([](TestClientSock& sock)
                    {
-                       sock.emit("AAA", {"hi"});
+                       sock.emit("DANK", {"ya know it"});
                        std::cout << "emiiting" << std::endl;
                    });
     
@@ -50,6 +50,10 @@ int main(int argc, const char * argv[])
     client.on("AAA", [](SockData data)
               {
                   std::cout << "A" << std::endl;
+                  std::cout << data.getRaw() << std::endl;
+              });
+    client.on("DANK", [](SockData data)
+              {
                   std::cout << data.getRaw() << std::endl;
               });
     

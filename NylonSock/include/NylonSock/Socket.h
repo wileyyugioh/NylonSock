@@ -9,18 +9,9 @@
 #ifndef __NylonSock__Socket__
 #define __NylonSock__Socket__
 
-#if defined(unix) || defined(__unix__) || defined(__unix)
-#define PLAT_UNIX
+#include "Definitions.h"
 
-#elif defined(__APPLE__)
-#define PLAT_APPLE
-
-#elif defined(_WIN32)
-#define PLAT_WIN
-#endif
-
-#if defined(PLAT_UNIX) || defined(PLAT_APPLE)
-#define UNIX_HEADER
+#ifdef UNIX_HEADER
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/fcntl.h>
@@ -44,6 +35,7 @@ namespace NylonSock
     {
     public:
         Error(std::string what);
+        Error(std::string what, bool null);
     };
     
     class Socket
@@ -64,7 +56,11 @@ namespace NylonSock
         
         const addrinfo* operator->() const;
         const addrinfo* get() const;
+#ifndef PLAT_WIN
         int port() const;
+#else
+        SOCKET port() const;
+#endif
         size_t size() const;
         bool operator ==(const Socket& that) const;
     };
@@ -100,7 +96,10 @@ namespace NylonSock
         
         std::unique_ptr<FD_Wrap> _set;
         //sets are sorted. hurrah!
+        //we don't need to worry about sets and ports in windows...
+#ifndef PLAT_WIN
         std::set<int> _sock;
+#endif
         
     public:
         void set(const Socket& sock);
@@ -108,11 +107,14 @@ namespace NylonSock
         void clr(const Socket& sock);
         void zero();
         bool isset(const Socket& sock) const;
-        int getMax() const;
+        
         fd_set get() const;
         
+#ifndef PLAT_WIN
         //returns size of set
         size_t size() const;
+        int getMax() const;
+#endif
         
         FD_Set();
         ~FD_Set();

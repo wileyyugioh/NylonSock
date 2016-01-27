@@ -42,43 +42,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "NylonSock/include/NylonSock/Socket.cpp"
-            timestampString = "475562412.417923"
+            timestampString = "475565761.403029"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "505"
-            endingLineNumber = "505"
-            landmarkName = "select(const FD_Set&amp; set, timeval timeout)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NylonSock/include/NylonSock/Socket.cpp"
-            timestampString = "475562412.417923"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "513"
-            endingLineNumber = "513"
-            landmarkName = "select(const FD_Set&amp; set, timeval timeout)"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "NylonSock/include/NylonSock/Socket.cpp"
-            timestampString = "475562410.470384"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "456"
-            endingLineNumber = "456"
+            startingLineNumber = "508"
+            endingLineNumber = "508"
             landmarkName = "FD_Set::set(fd_set&amp; set)"
             landmarkType = "5">
          </BreakpointContent>
@@ -90,12 +58,28 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "NylonSock/include/NylonSock/Socket.cpp"
-            timestampString = "475562459.340901"
+            timestampString = "475565761.403029"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "302"
-            endingLineNumber = "302"
-            landmarkName = "recv(const Socket&amp; sock, void* buf, size_t len, int flags)"
+            startingLineNumber = "516"
+            endingLineNumber = "516"
+            landmarkName = "FD_Set::clr(const Socket&amp; sock)"
+            landmarkType = "5">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "NylonSock/include/NylonSock/Socket.cpp"
+            timestampString = "475565761.403029"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "459"
+            endingLineNumber = "459"
+            landmarkName = "set(const fd_set&amp; set)"
             landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
@@ -106,13 +90,77 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "NylonSock/include/NylonSock/Socket.cpp"
-            timestampString = "475562462.014277"
+            timestampString = "475565761.403029"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "301"
-            endingLineNumber = "301"
-            landmarkName = "recv(const Socket&amp; sock, void* buf, size_t len, int flags)"
+            startingLineNumber = "305"
+            endingLineNumber = "305"
+            landmarkName = "accept(const Socket&amp; sock)"
             landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "NylonSock/include/NylonSock/Socket.cpp"
+            timestampString = "475565761.403029"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "304"
+            endingLineNumber = "304"
+            landmarkName = "accept(const Socket&amp; sock)"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "NylonSock/include/NylonSock/Socket.cpp"
+            timestampString = "475565761.403029"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "127"
+            endingLineNumber = "127"
+            landmarkName = "SOCKET()"
+            landmarkType = "7">
+            <Locations>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "NylonSock::Socket::AddrWrapper::AddrWrapper()"
+                  moduleName = "NylonSock"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/norayu/Documents/Xcode/NylonSock/NylonSock/include/NylonSock/Socket.cpp"
+                  timestampString = "475563418.623966"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "127"
+                  endingLineNumber = "127"
+                  offsetFromSymbolStart = "21">
+               </Location>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "NylonSock::Socket::AddrWrapper::AddrWrapper()"
+                  moduleName = "NylonSock"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/norayu/Documents/Xcode/NylonSock/NylonSock/include/NylonSock/Socket.cpp"
+                  timestampString = "475563418.624534"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "127"
+                  endingLineNumber = "127"
+                  offsetFromSymbolStart = "50">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
    </Breakpoints>
