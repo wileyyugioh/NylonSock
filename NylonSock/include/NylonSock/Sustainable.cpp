@@ -46,7 +46,7 @@ namespace NylonSock
         return raw_data;
     }
     
-    void emit(std::string event_name, const SockData& data, Socket& socket)
+    void emitSend(std::string event_name, const SockData& data, Socket& socket)
     {
         //sends data to server/client
         
@@ -80,14 +80,14 @@ namespace NylonSock
     void Client::emit(std::string event_name, const SockData& data) const
     {
         //sends data to server
-        NylonSock::emit(event_name, data, *_server);
+        emitSend(event_name, data, *_server);
         
     }
     
     void ClientSocket::emit(std::string event_name, const NylonSock::SockData &data)
     {
         //sends data to client
-        NylonSock::emit(event_name, data, *_client);
+        emitSend(event_name, data, *_client);
     }
     
     void ClientSocket::on(std::string event_name, SockFunc func)
