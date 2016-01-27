@@ -101,6 +101,7 @@ namespace NylonSock
         std::unique_ptr<FD_Wrap> _set;
         //sets are sorted. hurrah!
         std::set<int> _sock;
+        
     public:
         void set(const Socket& sock);
         void set(fd_set& set);
@@ -108,6 +109,9 @@ namespace NylonSock
         void zero();
         bool isset(const Socket& sock) const;
         int getMax() const;
+        
+        //returns size of set
+        size_t size() const;
         
         FD_Set();
         ~FD_Set();

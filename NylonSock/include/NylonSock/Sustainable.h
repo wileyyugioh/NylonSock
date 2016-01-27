@@ -47,11 +47,13 @@ namespace NylonSock
     private:
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc> _functions;
+        std::unique_ptr<FD_Set> _self_fd;
     public:
         ClientSocket(Socket sock);
-        void on(std::string event_name, SockFunc func);
-        void emit(std::string event_name, const SockData& data);
-        void update();
+        virtual ~ClientSocket() = default;
+        virtual void on(std::string event_name, SockFunc func);
+        virtual void emit(std::string event_name, const SockData& data);
+        virtual void update();
     };
     
     //dummy
@@ -128,11 +130,14 @@ namespace NylonSock
                 
                 //it is an actual socket
                 _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+                
+                //call the on connect func
+                _func(*_clients.back() );
             }
             
             for(auto& it : _clients)
             {
-                _func(*it);
+                it->update();
             }
         };
         

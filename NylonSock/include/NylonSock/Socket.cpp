@@ -274,11 +274,11 @@ namespace NylonSock
         auto size = ::recv(sock.port(), buf, len, flags);
         if(size == SOCKET_ERROR)
         {
-            throw Error("Failed to receive data from socket");
+            throw Error(std::string{"Failed to receive data from socket."});
         }
         else if(size == 0)
         {
-            throw Error("Recieve has failed due to socket being closed");
+            throw Error("Receive has failed due to socket being closed");
         }
         
         return size;
@@ -451,6 +451,11 @@ namespace NylonSock
     int FD_Set::getMax() const
     {
         return *_sock.rbegin();
+    }
+    
+    size_t FD_Set::size() const
+    {
+        return _sock.size();
     }
     
     std::vector<FD_Set> select(FD_Set& set, timeval timeout)

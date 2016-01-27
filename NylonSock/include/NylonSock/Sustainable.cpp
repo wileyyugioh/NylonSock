@@ -10,14 +10,13 @@
 
 #include <cstdint>
 
-//debug
-#include <iostream>
-
 /*
  How data is sent:
  
- Beginning is uint32_t of size
- Next is uint32_t of event name size
+ bytes are assumed to be 8 bits
+ 
+ Beginning is uint32_t of size in bytes
+ Next is uint32_t of event name size in bytes
  Next is name
  Rest is data.
  
@@ -26,6 +25,7 @@
 namespace NylonSock
 {
     constexpr size_t sizeint32 = sizeof(uint32_t);
+    constexpr uint32_t maximum32bit = std::numeric_limits<uint32_t>::max();
     
     TOOBIG::TOOBIG(std::string what) : std::runtime_error(what)
     {
@@ -34,6 +34,11 @@ namespace NylonSock
     
     SockData::SockData(std::string data) : raw_data(data)
     {
+        if(data.size() > maximum32bit)
+        {
+            //throw error because data is too large
+            throw TOOBIG(std::to_string(data.size()) );
+        }
     }
     
     std::string SockData::getRaw() const
@@ -98,10 +103,10 @@ namespace NylonSock
             
             //recieves data from client
             //also assumes socket is non blocking
-            char status = recv(sock, &datalen, sizeint32, NULL);
+            char success = recv(sock, &datalen, sizeint32, NULL);
             
-            //check to see if there is any more data to be received
-            if(status == -1)
+            //break in case of errors
+            if(success == -1)
             {
                 break;
             }
@@ -109,6 +114,7 @@ namespace NylonSock
             //receive message length
             recv(sock, &messagelen, sizeint32, NULL);
             
+            //convert to host language
             datalen = ntohl(datalen);
             messagelen = ntohl(messagelen);
             
@@ -143,6 +149,19 @@ namespace NylonSock
     
     void ClientSocket::update()
     {
+        //lazy initialization
+        if(_self_fd == nullptr)
+        {
+            _self_fd = std::make_unique<FD_Set>();
+            _self_fd->set(*_client);
+        }
+        
+        //see if there is any need to recv
+        if(select(*_self_fd, TimeVal{1000})[0].size() == 0)
+        {
+            return;
+        }
+        
         recvData(*_client, _functions);
     }
     
