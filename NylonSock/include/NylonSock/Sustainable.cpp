@@ -8,9 +8,10 @@
 
 #include "Sustainable.h"
 
-#include "Socket.h"
-
 #include <cstdint>
+
+//debug
+#include <iostream>
 
 /*
  How data is sent:
@@ -25,7 +26,6 @@
 namespace NylonSock
 {
     constexpr size_t sizeint32 = sizeof(uint32_t);
-    std::unique_ptr<FD_Set> Server::_fdset(new FD_Set);
     
     TOOBIG::TOOBIG(std::string what) : std::runtime_error(what)
     {
@@ -34,15 +34,6 @@ namespace NylonSock
     
     SockData::SockData(std::string data) : raw_data(data)
     {
-    }
-    
-    SockData::operator rapidjson::Document() const
-    {
-        //RVO. no fear!
-        rapidjson::Document doc;
-        doc.Parse(raw_data.c_str() );
-        
-        return doc;
     }
     
     std::string SockData::getRaw() const
@@ -69,6 +60,16 @@ namespace NylonSock
         
         //sending total data
         send(socket, raw_data.c_str(), raw_data.size(), NULL);
+    }
+    
+    Client::Client(std::string port) : Client(std::stoi(port) )
+    {
+        
+    }
+    
+    Client::Client(int port)
+    {
+        
     }
     
     void Client::emit(std::string event_name, const SockData& data) const
@@ -145,64 +146,8 @@ namespace NylonSock
         recvData(*_client, _functions);
     }
     
-    Server::Server(int port) : Server(std::to_string(port) )
+    ClientSocket::ClientSocket(Socket sock)
     {
-    }
-    
-    Server::Server(std::string port)
-    {
-        createServer(port);
-        addToSet();
-    }
-    
-    Server::~Server() = default;
-    
-    void Server::createServer(std::string port)
-    {
-        addrinfo hints = {0};
-        hints.ai_family = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_flags = AI_PASSIVE;
-        
-        _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
-        fcntl(*_server, O_NONBLOCK);
-        
-        bind(*_server);
-        
-        constexpr char backlog = 100;
-        
-        listen(*_server, backlog);
-    }
-    
-    void Server::addToSet()
-    {
-        _fdset->set(*_server);
-    }
-    
-    void Server::update()
-    {
-        auto sets = select(*_fdset, TimeVal{1000});
-        //sets[0] is an FD_Set of the sockets ready to be recv
-        
-        while(true)
-        {
-            //checks if the socket needs to be recv
-            if(!sets[0].isset(*_server) )
-            {
-                break;
-            }
-            
-            _clients.push_back(std::make_unique<Socket>(accept(*_server) ) );
-        }
-    }
-    
-    void Server::onConnect(ServClientFunc func)
-    {
-        _func = std::make_unique<ServClientFunc>(func);
-    }
-    
-    unsigned long Server::count() const
-    {
-        return _clients.size();
+        _client = std::make_unique<Socket>(sock);
     }
 }

@@ -9,7 +9,7 @@
 #ifndef __NylonSock__Sustainable__
 #define __NylonSock__Sustainable__
 
-#include "rapidjson/document.h"
+#include "Socket.h"
 
 #include <string>
 #include <stdexcept>
@@ -25,7 +25,6 @@ namespace NylonSock
     class ClientSocket;
     
     typedef void (*SockFunc)(SockData);
-    typedef void (*ServClientFunc)(ClientSocket);
     
     class TOOBIG : public std::runtime_error
     {
@@ -40,7 +39,6 @@ namespace NylonSock
         
     public:
         SockData(std::string data);
-        operator rapidjson::Document() const;
         std::string getRaw() const;
     };
     
@@ -50,28 +48,98 @@ namespace NylonSock
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc> _functions;
     public:
+        ClientSocket(Socket sock);
         void on(std::string event_name, SockFunc func);
         void emit(std::string event_name, const SockData& data);
         void update();
     };
     
-    class Server
+    //dummy
+    template<class UsrSock, class Dummy = void>
+    class Server;
+    
+    template <class UsrSock>
+    class Server<UsrSock, typename std::enable_if<std::is_base_of<ClientSocket, UsrSock>::value>::type>
     {
     private:
-        static std::unique_ptr<FD_Set> _fdset;
+        typedef void (*ServClientFunc)(UsrSock&);
+        std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
-        std::vector<std::unique_ptr<Socket> > _clients;
-        std::unique_ptr<ServClientFunc> _func;
+        std::vector<std::unique_ptr<UsrSock> > _clients;
+        ServClientFunc _func;
         
-        void createServer(std::string port);
-        void addToSet();
+        void createServer(std::string port)
+        {
+            addrinfo hints = {0};
+            hints.ai_family = AF_UNSPEC;
+            hints.ai_socktype = SOCK_STREAM;
+            hints.ai_flags = AI_PASSIVE;
+            
+            _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
+            fcntl(*_server, O_NONBLOCK);
+            
+            bind(*_server);
+            
+            constexpr int backlog = 100;
+            
+            listen(*_server, backlog);
+        };
+        
+        void addToSet()
+        {
+            //lazy
+            if(_fdset == nullptr)
+            {
+                _fdset = std::make_unique<FD_Set>();
+            }
+            
+            _fdset->set(*_server);
+        };
     public:
-        Server(int port);
-        Server(std::string port);
-        ~Server();
-        void onConnect(ServClientFunc func);
-        void update();
-        unsigned long count() const;
+        Server(std::string port)
+        {
+            createServer(port);
+            addToSet();
+        };
+        
+        Server(int port) : Server(std::to_string(port) )
+        {
+        };
+        
+        ~Server() = default;
+        
+        void onConnect(ServClientFunc func)
+        {
+            _func = func;
+        };
+        
+        void update()
+        {
+            auto sets = select(*_fdset, TimeVal{1000});
+            //sets[0] is an FD_Set of the sockets ready to be recv
+            
+            while(true)
+            {
+                auto new_sock = accept(*_server);
+                if(new_sock == NULL_SOCKET)
+                {
+                    break;
+                }
+                
+                //it is an actual socket
+                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+            }
+            
+            for(auto& it : _clients)
+            {
+                _func(*it);
+            }
+        };
+        
+        unsigned long count() const
+        {
+            return _clients.size();
+        };
     };
     
     class Client
@@ -80,6 +148,9 @@ namespace NylonSock
         //see top of cpp file to see how data is sent
         std::unique_ptr<Socket> _server;
     public:
+        Client(std::string port);
+        Client(int port);
+        
         void on(std::string event_name, SockFunc func);
         
         void emit(std::string event_name, const SockData& data) const;

@@ -13,12 +13,21 @@
 //for sleep
 #include <unistd.h>
 
+class TestClientSock : public NylonSock::ClientSocket
+{
+public:
+    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock)
+    {
+        std::cout << "ayylmao" << std::endl;
+    }
+};
+
 int main(int argc, const char * argv[])
 {
     using namespace NylonSock;
     std::cout << gethostname() << std::endl;
-    Server serv{3490};
-    serv.onConnect([](ClientSocket& sock)
+    Server<TestClientSock> serv{3490};
+    serv.onConnect([](TestClientSock& sock)
                    {
                        sock.emit("AAA", {"hi"});
                    });
@@ -28,5 +37,7 @@ int main(int argc, const char * argv[])
         serv.update();
         sleep(1);
     }
+    
+    //test client?
 }
 
