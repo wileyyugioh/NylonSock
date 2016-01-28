@@ -1,0 +1,3 @@
+C:/Users/Wiley Yu/Documents/Projects/NylonSock/VStudios/CMakeFiles/ALL_BUILD.dir
+C:/Users/Wiley Yu/Documents/Projects/NylonSock/VStudios/CMakeFiles/ZERO_CHECK.dir
+C:/Users/Wiley Yu/Documents/Projects/NylonSock/VStudios/CMakeFiles/nylonsock.dir

@@ -15,6 +15,21 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/fcntl.h>
+#elif defined(PLAT_WIN)
+#define _WIN32_WINNT _WIN32_WINNT_WIN8
+#define NOMINMAX
+
+#include <ws2tcpip.h>
+#include <WinSock2.h>
+#include <Windows.h>
+
+#pragma comment(lib, "ws2_32.lib")
+
+enum PortBlockers
+{
+	O_NONBLOCK = 0x0004,
+	O_ASYNC = 0x0040
+};
 #endif
 
 #include <string>
@@ -110,9 +125,9 @@ namespace NylonSock
         
         fd_set get() const;
         
-#ifndef PLAT_WIN
-        //returns size of set
         size_t size() const;
+#ifndef PLAT_WIN
+		//returns size of set
         int getMax() const;
 #endif
         
