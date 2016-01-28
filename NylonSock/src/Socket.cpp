@@ -23,7 +23,7 @@
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
 
-typedef int SOCKET
+typedef int SOCKET;
 
 #elif defined(PLAT_WIN)
 
@@ -555,7 +555,7 @@ namespace NylonSock
         return _sock.size();
 #else
 		return _set->get()->fd_count;
-#endif;
+#endif
     }
 
     
