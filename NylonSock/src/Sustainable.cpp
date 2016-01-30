@@ -197,5 +197,6 @@ namespace NylonSock
     ClientSocket::ClientSocket(Socket sock)
     {
         _client = std::make_unique<Socket>(sock);
+
     }
 }

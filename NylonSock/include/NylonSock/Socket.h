@@ -15,6 +15,8 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/fcntl.h>
+
+typedef int SOCKET;
 #elif defined(PLAT_WIN)
 #define _WIN32_WINNT _WIN32_WINNT_WIN8
 #define NOMINMAX
@@ -27,8 +29,8 @@
 
 enum PortBlockers
 {
-	O_NONBLOCK = 0x0004,
-	O_ASYNC = 0x0040
+	O_NONBLOCK = FIONBIO,
+	O_ASYNC = FIONBIO
 };
 #endif
 
@@ -46,6 +48,9 @@ struct timeval;
 //THE MEATY STUFF
 namespace NylonSock
 {
+	void NSInit();
+	void NSRelease();
+
     class Error : public std::runtime_error
     {
     public:
@@ -59,30 +64,31 @@ namespace NylonSock
         //socket wrapper that manages socket
         class SocketWrapper;
         class AddrWrapper;
+
         
         std::shared_ptr<AddrWrapper> _info;
         std::shared_ptr<SocketWrapper> _sw;
     public:
         Socket(const char* node, const char* service, const addrinfo* hints);
         Socket(std::string node, std::string service, const addrinfo* hints);
-        Socket(const sockaddr_storage* data, int port);
+        Socket(SOCKET port);
         Socket() = default;
         ~Socket() = default;
         
         const addrinfo* operator->() const;
         const addrinfo* get() const;
-#ifndef PLAT_WIN
-        int port() const;
-#else
+
         SOCKET port() const;
-#endif
+
         size_t size() const;
         bool operator ==(const Socket& that) const;
+
+		void freeaddrinfo();
     };
     
     const Socket NULL_SOCKET{};
     
-    void bind(const Socket& sock);
+    void bind(Socket& sock);
     
     void connect(const Socket& sock);
     
@@ -98,7 +104,7 @@ namespace NylonSock
     
     size_t recvfrom(const Socket& sock, void* buf, size_t len, unsigned int flags, const Socket& dest);
     
-    Socket getpeername(const Socket& sock);
+    sockaddr_storage getpeername(const Socket& sock);
     
     std::string gethostname();
     

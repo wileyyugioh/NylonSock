@@ -95,6 +95,7 @@ namespace NylonSock
             constexpr int backlog = 100;
             
             listen(*_server, backlog);
+			OutputDebugString("AAAA");
         };
         
         void addToSet()
@@ -127,16 +128,18 @@ namespace NylonSock
         
         void update()
         {
-            auto sets = select(*_fdset, TimeVal{1000});
-            //sets[0] is an FD_Set of the sockets ready to be recv
             
             while(true)
             {
+				//sets[0] is an FD_Set of the sockets ready to be accept
+				auto sets = select(*_fdset, TimeVal{ 1000 });
+				
+				if (sets[0].size() == 0)
+				{
+					break;
+				}
+
                 auto new_sock = accept(*_server);
-                if(new_sock == NULL_SOCKET)
-                {
-                    break;
-                }
                 
                 //it is an actual socket
                 _clients.push_back(std::make_unique<UsrSock>(new_sock) );
@@ -149,7 +152,7 @@ namespace NylonSock
             {
                 it->update();
             }
-        };
+		   };
         
         unsigned long count() const
         {

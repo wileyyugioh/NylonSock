@@ -1,7 +1,0 @@
-﻿  Socket.cpp
-C:\Users\Wiley Yu\Documents\Projects\NylonSock\NylonSock\src\Socket.cpp(541): warning C4800: 'int': forcing value to bool 'true' or 'false' (performance warning)
-C:\Users\Wiley Yu\Documents\Projects\NylonSock\NylonSock\src\Socket.cpp(599): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-  Sustainable.cpp
-C:\Users\Wiley Yu\Documents\Projects\NylonSock\NylonSock\src\Sustainable.cpp(131): warning C4267: 'initializing': conversion from 'size_t' to 'char', possible loss of data
-  Generating Code...
-  nylonsock.vcxproj -> C:\Users\Wiley Yu\Documents\Projects\NylonSock\VStudios\Debug\nylonsock.dll

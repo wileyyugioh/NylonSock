@@ -23,14 +23,33 @@
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
 
-typedef int SOCKET
-
 #elif defined(PLAT_WIN)
 
 #endif
 
 namespace NylonSock
 {
+	void NSInit()
+	{
+#ifdef PLAT_WIN
+		constexpr char major = 2;
+		constexpr char minor = 2;
+		WSADATA wsaData;
+
+		char success = WSAStartup(MAKEWORD(major, minor), &wsaData);
+		if (success != 0)
+		{
+			throw Error("Failed to start Winsock2.2");
+		}
+
+#endif
+	}
+
+	void NSRelease()
+	{
+		WSACleanup();
+	}
+
     Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
     {
     }
@@ -83,26 +102,18 @@ namespace NylonSock
         SocketWrapper& operator=(SocketWrapper&& that) = delete;
         
         
-        ~SocketWrapper()
-        {
+		~SocketWrapper()
+		{
+			if (_sock != INVALID_SOCKET)
+			{
 #ifdef UNIX_HEADER
-            close(_sock);
+				close(_sock);
 #elif defined(PLAT_WIN)
-			closesocket(_sock);
+				closesocket(_sock);
 #endif
+			}
 		}
         
-#ifndef PLAT_WIN
-        operator int()
-        {
-            return get();
-        }
-        
-        int get() const
-        {
-            return _sock;
-        }
-#else
         operator SOCKET()
         {
 			return get();
@@ -112,7 +123,6 @@ namespace NylonSock
         {
             return _sock;
         }
-#endif
         
     };
     
@@ -127,7 +137,7 @@ namespace NylonSock
         {
             
             _info = {0};
-            char success = ::getaddrinfo(node, service, hints, &_info);
+            int success = ::getaddrinfo(node, service, hints, &_info);
             if(success != 0)
             {
                 throw Error(std::string{"Failed to get addrinfo: "} + gai_strerror(success) );
@@ -146,7 +156,7 @@ namespace NylonSock
         
         ~AddrWrapper()
         {
-            freeaddrinfo(_orig);
+            ::freeaddrinfo(_orig);
             _info = nullptr;
             _orig = nullptr;
         }
@@ -191,24 +201,14 @@ namespace NylonSock
         
     }
     
-    Socket::Socket(const sockaddr_storage* data, int port)
+    Socket::Socket(SOCKET port)
     {
-        //gotta allocate that memory yo
-        _info = std::make_shared<AddrWrapper>();
+		//used for a socket that got recv.
+		//no addr_info because screw you
         
         //sets socket
         _sw = std::make_shared<SocketWrapper>(port);
-        
-        _info->get()->ai_family = data->ss_family;
-        
-        //copies that data
-        //I PRAY that freeaddrinfo deletes this malloc!
-        //using malloc instead of new because socket is c
-        _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-        *_info->get()->ai_addr = *(sockaddr*)data;
-#ifdef PLAT_APPLE
-        //_info->get()->ai_addrlen = sizeof(data->ss_len);
-#endif
+
     }
     
     const addrinfo* Socket::operator->() const
@@ -219,20 +219,18 @@ namespace NylonSock
     
     const addrinfo* Socket::get() const
     {
+		//purposely throws if Socket is a recv one
+		if (_info == nullptr)
+		{
+			throw Error("Addrinfo hasn't been copied or has already been freed by bind call!");
+		}
         return *_info.get();
     }
     
-#ifndef PLAT_WIN
-    int Socket::port() const
-    {
-        return *_sw.get();
-    }
-#else
     SOCKET Socket::port() const
     {
-        return *_sw.get();
+		return _sw.get()->get();
     }
-#endif
     
     size_t Socket::size() const
     {
@@ -244,8 +242,13 @@ namespace NylonSock
     {
         return (_info == that._info && _sw == that._sw);
     }
+
+	void Socket::freeaddrinfo()
+	{
+		_info = nullptr;
+	}
     
-    void bind(const Socket& sock)
+    void bind(Socket& sock)
     {
         
         //true
@@ -256,15 +259,21 @@ namespace NylonSock
         if(success == SOCKET_ERROR)
         {
             //try clearing the port
-            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );
-            
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );   
         }
+
+		//clears addrinfo
+		sock.freeaddrinfo();
     }
     
     void connect(const Socket& sock)
     {
         //connects socket to host
         char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
+		
+		auto zxklj = sock.port();
+		auto alsdkfj = sock->ai_addr;
+		auto aldksfj = sock->ai_addrlen;
         if(success == SOCKET_ERROR)
         {
             throw Error("Failed to connect to socket");
@@ -274,6 +283,7 @@ namespace NylonSock
     void listen(const Socket& sock, unsigned char backlog)
     {
         char success = ::listen(sock.port(), static_cast<int>(backlog) );
+
         if(success == SOCKET_ERROR)
         {
             throw Error("Failed to listen to socket");
@@ -287,17 +297,15 @@ namespace NylonSock
         sockaddr_storage t_data = {0};
         socklen_t t_size = sizeof(t_data);
         //                         I really don't like c casts...
-        char port = ::accept(sock.port(), (sockaddr*)(&t_data), &t_size);
+        SOCKET port = ::accept(sock.port(), (sockaddr*)(&t_data), &t_size);
+
         if(port == INVALID_SOCKET)
         {
-            if(errno == EAGAIN || errno == EWOULDBLOCK)
-            {
-                return NULL_SOCKET;
-            }
+			//requires select to test before
             throw Error("Failed to accept socket");
         }
         
-        return {&t_data, port};
+        return {port};
     }
     
     size_t send(const Socket& sock, const void* buf, size_t len, int flags)
@@ -374,20 +382,21 @@ namespace NylonSock
         return size;
     }
     
-    Socket getpeername(const Socket& sock)
+	sockaddr_storage getpeername(const Socket& sock)
     {
         //0 initialized again!
         //we also want that ipv6
         sockaddr_storage t_data = {0};
         socklen_t t_size = sizeof(t_data);
         //                         I really don't like c casts...
-        char port = ::getpeername(sock.port(), (sockaddr*)(&t_data), &t_size);
+        int port = ::getpeername(sock.port(), (sockaddr*)(&t_data), &t_size);
         if(port == SOCKET_ERROR)
         {
             throw Error("Failed to get peername");
-        }
-        
-        return {&t_data, port};
+		}
+
+
+		return t_data;
     }
     
     std::string gethostname()
