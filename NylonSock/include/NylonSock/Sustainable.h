@@ -193,6 +193,7 @@ namespace NylonSock
         void on(std::string event_name, SockFunc func) override;
         void emit(std::string event_name, const SockData& data) override;
         void update() override;
+        bool getDestroy() const override;
 
     };
 }

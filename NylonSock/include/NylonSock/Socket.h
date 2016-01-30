@@ -57,6 +57,12 @@ namespace NylonSock
         Error(std::string what);
         Error(std::string what, bool null);
     };
+
+	class SOCK_CLOSED : public Error
+	{
+	public:
+		SOCK_CLOSED(std::string what);
+	};
     
     class PEER_RESET : public Error
     {

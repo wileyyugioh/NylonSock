@@ -25,6 +25,11 @@ constexpr char SOCKET_ERROR = -1;
 
 typedef int SOCKET;
 
+#elif defined(PLAT_WIN)
+constexpr int SHUT_RD = SD_RECEIVE;
+constexpr int SHUT_WR = SD_SEND;
+constexpr int SHUT_RDWR = SD_BOTH;
+
 #endif
 
 namespace NylonSock
@@ -59,6 +64,8 @@ namespace NylonSock
     Error::Error(std::string what, bool null) : std::runtime_error(what)
     {
     }
+
+	SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
     
     PEER_RESET::PEER_RESET(std::string what) : Error(what) {};
     
@@ -245,7 +252,9 @@ namespace NylonSock
         //using malloc instead of new because socket is c
         _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
         *_info->get()->ai_addr = *(sockaddr*)data;
-        _info->get()->ai_addrlen = sizeof(data->ss_len);
+
+		//not needed?
+        //_info->get()->ai_addrlen = sizeof(data->ss_len);
     }
     
     const addrinfo* Socket::operator->() const
@@ -386,7 +395,7 @@ namespace NylonSock
         
         if(size == 0)
         {
-            throw Error("Receive has failed due to socket being closed");
+            throw SOCK_CLOSED("Receive has failed due to socket being closed");
         }
         
         return size;

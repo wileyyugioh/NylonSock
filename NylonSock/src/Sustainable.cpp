@@ -111,6 +111,11 @@ namespace NylonSock
         _inter->update();
     }
     
+    bool Client::getDestroy() const
+    {
+        return _inter->getDestroy();
+    }
+    
     void ClientSocket::emit(std::string event_name, const NylonSock::SockData &data)
     {
         //sends data to client
@@ -202,6 +207,14 @@ namespace NylonSock
             _self_fd = nullptr;
             
             _destroy_flag = true;
+        }
+        catch (SOCK_CLOSED& e)
+        {
+            _client = nullptr;
+            _functions.clear();
+            _self_fd = nullptr;
+            
+            throw e;
         }
     }
     
