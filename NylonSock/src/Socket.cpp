@@ -135,6 +135,7 @@ namespace NylonSock
     private:
         addrinfo* _orig;
         addrinfo* _info;
+        char _man;
     public:
         AddrWrapper(const char* node, const char* service, const addrinfo* hints)
         {
@@ -147,6 +148,7 @@ namespace NylonSock
             }
             
             _orig = _info;
+            _man = false;
         }
         
         AddrWrapper()
@@ -155,13 +157,23 @@ namespace NylonSock
             //have to use malloc because this is a c library?
             _info = (addrinfo*)(malloc(sizeof(addrinfo) ) );
             _orig = _info;
+            _man = true;
         }
         
         ~AddrWrapper()
         {
+            if(_man == false)
+            {
             ::freeaddrinfo(_orig);
             _info = nullptr;
             _orig = nullptr;
+            }
+            else
+            {
+                free(_orig);
+                _info = nullptr;
+                _orig = nullptr;
+            }
         }
         
         AddrWrapper(const AddrWrapper& that) = delete;
@@ -212,6 +224,26 @@ namespace NylonSock
         //sets socket
         _sw = std::make_shared<SocketWrapper>(port);
 
+    }
+    
+    Socket::Socket(SOCKET port, const sockaddr_storage* data)
+    {
+        //this is for storing data!
+        //yay!
+        //gotta allocate that memory yo
+        _info = std::make_shared<AddrWrapper>();
+        
+        //sets socket
+        _sw = std::make_shared<SocketWrapper>(port);
+        
+        _info->get()->ai_family = data->ss_family;
+        
+        //copies that data
+        //I PRAY that freeaddrinfo deletes this malloc!
+        //using malloc instead of new because socket is c
+        _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
+        *_info->get()->ai_addr = *(sockaddr*)data;
+        _info->get()->ai_addrlen = sizeof(data->ss_len);
     }
     
     const addrinfo* Socket::operator->() const
@@ -305,7 +337,7 @@ namespace NylonSock
             throw Error("Failed to accept socket");
         }
         
-        return {port};
+        return {port, &t_data};
     }
     
     size_t send(const Socket& sock, const void* buf, size_t len, int flags)
