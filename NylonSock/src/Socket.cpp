@@ -248,9 +248,13 @@ namespace NylonSock
         //using malloc instead of new because socket is c
         _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
         *_info->get()->ai_addr = *(sockaddr*)data;
+<<<<<<< HEAD
 
 		//not needed?
         //_info->get()->ai_addrlen = sizeof(data->ss_len);
+=======
+        _info->get()->ai_addrlen = sizeof(data->ss_len);
+>>>>>>> 745f5126757959170ffb2b3f8bb34b10f7bba0a7
     }
     
     const addrinfo* Socket::operator->() const
