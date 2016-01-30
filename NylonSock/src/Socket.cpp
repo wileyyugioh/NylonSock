@@ -60,6 +60,8 @@ namespace NylonSock
     {
     }
     
+    PEER_RESET::PEER_RESET(std::string what) : Error(what) {};
+    
     //needs to be in shared ptr
     class Socket::SocketWrapper
     {
@@ -366,15 +368,23 @@ namespace NylonSock
 		//casting to char* for winsock
 		auto size = ::recv(sock.port(), (char*)buf, len, flags);
 #endif
+        
+        if(size == SOCKET_ERROR && errno == ECONNRESET)
+        {
+            throw PEER_RESET("Connection reset by peer");
+        }
+
         if(size == SOCKET_ERROR && errno != EWOULDBLOCK)
         {
             throw Error(std::string{"Failed to receive data from socket."});
         }
-        else if(size == SOCKET_ERROR && errno == EWOULDBLOCK)
+        
+        if(size == SOCKET_ERROR && errno == EWOULDBLOCK)
         {
             return 0;
         }
-        else if(size == 0)
+        
+        if(size == 0)
         {
             throw Error("Receive has failed due to socket being closed");
         }

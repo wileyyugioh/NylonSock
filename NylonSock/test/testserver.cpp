@@ -57,7 +57,7 @@ int main(int argc, const char * argv[])
 			  });
      */
     
-    while(serv.count() == 0)
+    while(true)
     {
         serv.update();
     }

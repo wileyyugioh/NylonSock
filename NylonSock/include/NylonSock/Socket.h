@@ -58,6 +58,12 @@ namespace NylonSock
         Error(std::string what, bool null);
     };
     
+    class PEER_RESET : public Error
+    {
+    public:
+        PEER_RESET(std::string what);
+    };
+    
     class Socket
     {
     private:

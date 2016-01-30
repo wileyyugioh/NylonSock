@@ -49,6 +49,7 @@ namespace NylonSock
         virtual void on(std::string event_name, SockFunc func) = 0;
         virtual void emit(std::string event_name, const SockData& data) = 0;
         virtual void update() = 0;
+        virtual bool getDestroy() const = 0;
         
     };
     
@@ -58,12 +59,15 @@ namespace NylonSock
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc> _functions;
         std::unique_ptr<FD_Set> _self_fd;
+        
+        bool _destroy_flag = false;
     public:
         ClientSocket(Socket sock);
         virtual ~ClientSocket() = default;
         void on(std::string event_name, SockFunc func) override;
         void emit(std::string event_name, const SockData& data) override;
         void update() override;
+        bool getDestroy() const override;
     };
     
     //dummy
@@ -130,6 +134,7 @@ namespace NylonSock
             
             while(true)
             {
+                //this is all accepting new clients
 				//sets[0] is an FD_Set of the sockets ready to be accept
 				auto sets = select(*_fdset, TimeVal{ 1000 });
 				
@@ -147,9 +152,19 @@ namespace NylonSock
                 _func(*_clients.back() );
             }
             
-            for(auto& it : _clients)
+            //updating clients
+            auto it = std::begin(_clients);
+            while(it != _clients.end() )
             {
-                it->update();
+                if((*it)->getDestroy() == true)
+                {
+                    it = _clients.erase(it);
+                }
+                else
+                {
+                    (*it)->update();
+                    it++;
+                }
             }
 		   };
         

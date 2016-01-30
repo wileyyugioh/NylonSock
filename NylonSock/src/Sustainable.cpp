@@ -26,7 +26,7 @@ namespace NylonSock
 {
     constexpr size_t sizeint32 = sizeof(uint32_t);
     constexpr uint32_t maximum32bit = std::numeric_limits<uint32_t>::max();
-
+    
     
     TOOBIG::TOOBIG(std::string what) : std::runtime_error(what)
     {
@@ -173,30 +173,46 @@ namespace NylonSock
     
     void ClientSocket::update()
     {
-        //lazy initialization
-        if(_self_fd == nullptr)
+        try
         {
-            _self_fd = std::make_unique<FD_Set>();
-            _self_fd->set(*_client);
-        }
-        
-        auto x = select(*_self_fd, TimeVal{1000});
-        
-        while(true)
-        {
-            //see if we can recv
-            if(select(*_self_fd, TimeVal{1000})[0].size() <= 0)
+            //lazy initialization
+            if(_self_fd == nullptr)
             {
-                return;
+                _self_fd = std::make_unique<FD_Set>();
+                _self_fd->set(*_client);
             }
             
-            recvData(*_client, _functions);
+            auto x = select(*_self_fd, TimeVal{1000});
+            
+            while(true)
+            {
+                //see if we can recv
+                if(select(*_self_fd, TimeVal{1000})[0].size() <= 0)
+                {
+                    return;
+                }
+                
+                recvData(*_client, _functions);
+            }
+        }
+        catch(PEER_RESET& e)
+        {
+            _client = nullptr;
+            _functions.clear();
+            _self_fd = nullptr;
+            
+            _destroy_flag = true;
         }
     }
     
     ClientSocket::ClientSocket(Socket sock)
     {
         _client = std::make_unique<Socket>(sock);
-
+        
+    }
+    
+    bool ClientSocket::getDestroy() const
+    {
+        return _destroy_flag;
     }
 }
