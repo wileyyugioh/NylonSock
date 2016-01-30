@@ -36,12 +36,14 @@ int main(int argc, const char * argv[])
 	NSInit();
 
 	std::cout << gethostname() << std::endl;
+	
 	Server<TestClientSock> serv{ 3490 };
 	serv.onConnect([](TestClientSock& sock)
 	{
 		sock.emit("DANK", { "ya know it" });
 		std::cout << "emiiting" << std::endl;
 	});
+	
 	
 	InClient client{MYIP, 3490};
 	client.on("AAA", [](SockData data)
@@ -57,9 +59,10 @@ int main(int argc, const char * argv[])
 			  
 
 
-		serv.update();
+	serv.update();
 
     client.update();
+	Sleep(1000);
 
 	NSRelease();
 }
