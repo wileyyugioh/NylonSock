@@ -187,8 +187,6 @@ namespace NylonSock
                 _self_fd->set(*_client);
             }
             
-            auto x = select(*_self_fd, TimeVal{1000});
-            
             while(true)
             {
                 //see if we can recv
