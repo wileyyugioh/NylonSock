@@ -653,6 +653,13 @@ namespace NylonSock
         return fds_data;
     }
     
+    std::vector<FD_Set> select(const FD_Set& set, TimeVal timeout)
+    {
+        return select(set, timeout.get() );
+    }
+    
+    
+    
     TimeVal::TimeVal(unsigned int milli)
     {
         //find seconds
@@ -660,9 +667,14 @@ namespace NylonSock
         _tv_usec = (milli % 1000) * 1000;
     }
     
-    TimeVal::operator timeval() const
+    timeval TimeVal::get() const
     {
         return {_tv_sec, _tv_usec};
+    }
+    
+    TimeVal::operator timeval() const
+    {
+        return get();
     }
     
     void setsockopt(const Socket& sock, int level, int optname, const void *optval, socklen_t optlen)

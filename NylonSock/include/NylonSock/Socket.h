@@ -156,13 +156,15 @@ namespace NylonSock
         FD_Set(const FD_Set& that);
     };
     
-    //not const reference because set.getMax needs to sort the array!
-    
     //select
     //0 = read
     //1 = write
     //2 = except
     std::vector<FD_Set> select(const FD_Set& set, timeval timeout);
+    
+    class TimeVal;
+    
+    std::vector<FD_Set> select(const FD_Set& set, TimeVal timeout);
     
     class TimeVal
     {
@@ -172,6 +174,7 @@ namespace NylonSock
     public:
         TimeVal(unsigned int milli);
         
+        timeval get() const;
         operator timeval() const;
     };
     
