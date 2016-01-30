@@ -108,6 +108,7 @@ namespace NylonSock
 		{
 			if (_sock != INVALID_SOCKET)
 			{
+                shutdown(_sock, SHUT_RDWR);
 #ifdef UNIX_HEADER
 				close(_sock);
 #elif defined(PLAT_WIN)
