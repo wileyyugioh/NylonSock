@@ -25,6 +25,8 @@ constexpr char SOCKET_ERROR = -1;
 
 typedef int SOCKET;
 
+#endif
+
 namespace NylonSock
 {
 	void NSInit()
@@ -45,7 +47,9 @@ namespace NylonSock
 
 	void NSRelease()
 	{
+#ifdef PLAT_WIN
 		WSACleanup();
+#endif
 	}
 
     Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
@@ -268,10 +272,7 @@ namespace NylonSock
     {
         //connects socket to host
         char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
-		
-		auto zxklj = sock.port();
-		auto alsdkfj = sock->ai_addr;
-		auto aldksfj = sock->ai_addrlen;
+        
         if(success == SOCKET_ERROR)
         {
             throw Error("Failed to connect to socket");

@@ -95,7 +95,6 @@ namespace NylonSock
             constexpr int backlog = 100;
             
             listen(*_server, backlog);
-			OutputDebugString("AAAA");
         };
         
         void addToSet()

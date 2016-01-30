@@ -42,8 +42,6 @@ int main(int argc, const char * argv[])
 		sock.emit("DANK", { "ya know it" });
 		std::cout << "emiiting" << std::endl;
 	});
-
-	Sleep(2000);
 	
 	InClient client{MYIP, 3490};
 	client.on("AAA", [](SockData data)
