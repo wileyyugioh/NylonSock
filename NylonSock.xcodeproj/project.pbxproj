@@ -36,6 +36,7 @@
 		21AA0AD51C29054E00995D3B /* testserver.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = testserver.cpp; sourceTree = "<group>"; };
 		21C0635C1C27F763004A4AAC /* NylonSock */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = NylonSock; sourceTree = BUILT_PRODUCTS_DIR; };
 		21C063611C27F763004A4AAC /* NylonSock.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = NylonSock.1; sourceTree = "<group>"; };
+		21F2C3D31C5C94C200364607 /* testclient.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = testclient.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				21AA0AD51C29054E00995D3B /* testserver.cpp */,
+				21F2C3D31C5C94C200364607 /* testclient.cpp */,
 			);
 			path = test;
 			sourceTree = "<group>";
