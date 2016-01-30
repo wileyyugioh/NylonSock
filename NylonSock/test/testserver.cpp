@@ -10,7 +10,7 @@
 
 #include <iostream>
 
-constexpr const char MYIP[] = "localhost";
+constexpr const char MYIP[] = "192.168.29.219";
 
 class InClient : public NylonSock::Client
 {
@@ -32,35 +32,38 @@ public:
 
 int main(int argc, const char * argv[])
 {
-	using namespace NylonSock;
-	NSInit();
-
-	std::cout << gethostname() << std::endl;
-	Server<TestClientSock> serv{ 3490 };
-	serv.onConnect([](TestClientSock& sock)
-	{
-		sock.emit("DANK", { "ya know it" });
-		std::cout << "emiiting" << std::endl;
-	});
-	
-	InClient client{MYIP, 3490};
-	client.on("AAA", [](SockData data)
+    using namespace NylonSock;
+    NSInit();
+    
+    std::cout << gethostname() << std::endl;
+    
+    Server<TestClientSock> serv{ 3490 };
+    serv.onConnect([](TestClientSock& sock)
+                   {
+                       sock.emit("DANK", { "ya know it" });
+                       std::cout << "emiiting" << std::endl;
+                   });
+    
+    /*
+     InClient client{MYIP, 3490};
+     client.on("AAA", [](SockData data)
 			  {
-				  std::cout << "A" << std::endl;
-				  std::cout << data.getRaw() << std::endl;
+     std::cout << "A" << std::endl;
+     std::cout << data.getRaw() << std::endl;
 			  });
-	client.on("DANK", [](SockData data)
+     client.on("DANK", [](SockData data)
 			  {
-				  std::cout << data.getRaw() << std::endl;
+     std::cout << data.getRaw() << std::endl;
 			  });
-	
-			  
-
-
-		serv.update();
-
-    client.update();
-
-	NSRelease();
+     */
+    
+    while(serv.count() == 0)
+    {
+        serv.update();
+    }
+    
+    //client.update();
+    
+    NSRelease();
 }
 
