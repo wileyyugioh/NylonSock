@@ -173,25 +173,36 @@ namespace NylonSock
     
     void ClientSocket::update()
     {
-        //lazy initialization
-        if(_self_fd == nullptr)
-        {
-            _self_fd = std::make_unique<FD_Set>();
-            _self_fd->set(*_client);
-        }
-        
-        auto x = select(*_self_fd, TimeVal{1000});
-        
-        while(true)
-        {
-            //see if we can recv
-            if(select(*_self_fd, TimeVal{1000})[0].size() <= 0)
-            {
-                return;
-            }
-            
-            recvData(*_client, _functions);
-        }
+		try
+		{
+			//lazy initialization
+			if (_self_fd == nullptr)
+			{
+				_self_fd = std::make_unique<FD_Set>();
+				_self_fd->set(*_client);
+			}
+
+			auto x = select(*_self_fd, TimeVal{ 1000 });
+
+			while (true)
+			{
+				//see if we can recv
+				if (select(*_self_fd, TimeVal{ 1000 })[0].size() <= 0)
+				{
+					return;
+				}
+
+				recvData(*_client, _functions);
+			}
+		}
+		catch (SOCK_CLOSED& e)
+		{
+			_client = nullptr;
+			_functions.clear();
+			_self_fd = nullptr;
+
+			throw e;
+		}
     }
     
     ClientSocket::ClientSocket(Socket sock)
