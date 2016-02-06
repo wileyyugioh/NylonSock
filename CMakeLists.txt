@@ -20,7 +20,6 @@ include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/NylonSock")
 
 IF (WIN32)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
-target_link_libraries(nylonsock ws2_32)
 ENDIF()
 
 set(SRCS
@@ -29,6 +28,10 @@ NylonSock/src/Sustainable.cpp
 )
 
 add_library(${PROJECT_NAME} SHARED ${SRCS})
+
+if (WIN32)
+target_link_libraries(nylonsock ws2_32)
+ENDIF()
 
 add_executable(TestServer NylonSock/test/testserver.cpp)
 add_executable(TestClient NylonSock/test/testclient.cpp)
