@@ -1,6 +1,18 @@
 cmake_minimum_required (VERSION 2.8)
 project (nylonsock)
 
+set(INCLUDE_DIR ${PROJECT_NAME})
+set(LIB_DIR ${PROJECT_NAME}/lib)
+set(TEST_DIR ${PROJECT_NAME}/test)
+
+file(MAKE_DIRECTORY ${INCLUDE_DIR})
+file(MAKE_DIRECTORY ${LIB_DIR})
+file(MAKE_DIRECTORY ${TEST_DIR})
+
+file(COPY NylonSock/include DESTINATION ${INCLUDE_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIB_DIR})
+set(EXECUTABLE_OUTPUT_PATH ${TEST_DIR})
+
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
@@ -8,6 +20,7 @@ include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/NylonSock")
 
 IF (WIN32)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+target_link_libraries(nylonsock ws2_32)
 ENDIF()
 
 set(SRCS
@@ -22,3 +35,5 @@ add_executable(TestClient NylonSock/test/testclient.cpp)
 
 target_link_libraries(TestServer ${PROJECT_NAME})
 target_link_libraries(TestClient ${PROJECT_NAME})
+
+INSTALL(TARGETS TestServer TestClient DESTINATION ${TEST_DIR})
