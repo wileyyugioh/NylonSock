@@ -18,6 +18,8 @@
 
 typedef int SOCKET;
 #elif defined(PLAT_WIN)
+
+//windows is trippy
 #define _WIN32_WINNT _WIN32_WINNT_WIN8
 #define NOMINMAX
 
@@ -25,6 +27,7 @@ typedef int SOCKET;
 #include <WinSock2.h>
 #include <Windows.h>
 
+//if not built with cmake
 #pragma comment(lib, "ws2_32.lib")
 
 enum PortBlockers

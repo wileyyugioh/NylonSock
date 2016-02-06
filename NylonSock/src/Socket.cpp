@@ -34,29 +34,29 @@ constexpr int SHUT_RDWR = SD_BOTH;
 
 namespace NylonSock
 {
-	void NSInit()
-	{
+    void NSInit()
+    {
 #ifdef PLAT_WIN
-		constexpr char major = 2;
-		constexpr char minor = 2;
-		WSADATA wsaData;
-
-		char success = WSAStartup(MAKEWORD(major, minor), &wsaData);
-		if (success != 0)
-		{
-			throw Error("Failed to start Winsock2.2");
-		}
-
+        constexpr char major = 2;
+        constexpr char minor = 2;
+        WSADATA wsaData;
+        
+        char success = WSAStartup(MAKEWORD(major, minor), &wsaData);
+        if (success != 0)
+        {
+            throw Error("Failed to start Winsock2.2");
+        }
+        
 #endif
-	}
-
-	void NSRelease()
-	{
+    }
+    
+    void NSRelease()
+    {
 #ifdef PLAT_WIN
-		WSACleanup();
+        WSACleanup();
 #endif
-	}
-
+    }
+    
     Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
     {
     }
@@ -64,8 +64,8 @@ namespace NylonSock
     Error::Error(std::string what, bool null) : std::runtime_error(what)
     {
     }
-
-	SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
+    
+    SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
     
     PEER_RESET::PEER_RESET(std::string what) : Error(what) {};
     
@@ -113,22 +113,22 @@ namespace NylonSock
         SocketWrapper& operator=(SocketWrapper&& that) = delete;
         
         
-		~SocketWrapper()
-		{
-			if (_sock != INVALID_SOCKET)
-			{
+        ~SocketWrapper()
+        {
+            if (_sock != INVALID_SOCKET)
+            {
                 shutdown(_sock, SHUT_RDWR);
 #ifdef UNIX_HEADER
-				close(_sock);
+                close(_sock);
 #elif defined(PLAT_WIN)
-				closesocket(_sock);
+                closesocket(_sock);
 #endif
-			}
-		}
+            }
+        }
         
         operator SOCKET()
         {
-			return get();
+            return get();
         }
         
         SOCKET get() const
@@ -173,9 +173,9 @@ namespace NylonSock
         {
             if(_man == false)
             {
-            ::freeaddrinfo(_orig);
-            _info = nullptr;
-            _orig = nullptr;
+                ::freeaddrinfo(_orig);
+                _info = nullptr;
+                _orig = nullptr;
             }
             else
             {
@@ -227,12 +227,12 @@ namespace NylonSock
     
     Socket::Socket(SOCKET port)
     {
-		//used for a socket that got recv.
-		//no addr_info because screw you
+        //used for a socket that got recv.
+        //no addr_info because screw you
         
         //sets socket
         _sw = std::make_shared<SocketWrapper>(port);
-
+        
     }
     
     Socket::Socket(SOCKET port, const sockaddr_storage* data)
@@ -252,8 +252,8 @@ namespace NylonSock
         //using malloc instead of new because socket is c
         _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
         *_info->get()->ai_addr = *(sockaddr*)data;
-
-		//not needed?
+        
+        //not needed?
         //_info->get()->ai_addrlen = sizeof(data->ss_len);
     }
     
@@ -265,17 +265,17 @@ namespace NylonSock
     
     const addrinfo* Socket::get() const
     {
-		//purposely throws if Socket is a recv one
-		if (_info == nullptr)
-		{
-			throw Error("Addrinfo hasn't been copied or has already been freed by bind call!");
-		}
+        //purposely throws if Socket is a recv one
+        if (_info == nullptr)
+        {
+            throw Error("Addrinfo hasn't been copied or has already been freed by bind call!");
+        }
         return *_info.get();
     }
     
     SOCKET Socket::port() const
     {
-		return _sw.get()->get();
+        return _sw.get()->get();
     }
     
     size_t Socket::size() const
@@ -288,11 +288,11 @@ namespace NylonSock
     {
         return (_info == that._info && _sw == that._sw);
     }
-
-	void Socket::freeaddrinfo()
-	{
-		_info = nullptr;
-	}
+    
+    void Socket::freeaddrinfo()
+    {
+        _info = nullptr;
+    }
     
     void bind(Socket& sock)
     {
@@ -305,11 +305,11 @@ namespace NylonSock
         if(success == SOCKET_ERROR)
         {
             //try clearing the port
-            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );   
+            setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );
         }
-
-		//clears addrinfo
-		sock.freeaddrinfo();
+        
+        //clears addrinfo
+        sock.freeaddrinfo();
     }
     
     void connect(const Socket& sock)
@@ -326,7 +326,7 @@ namespace NylonSock
     void listen(const Socket& sock, unsigned char backlog)
     {
         char success = ::listen(sock.port(), static_cast<int>(backlog) );
-
+        
         if(success == SOCKET_ERROR)
         {
             throw Error("Failed to listen to socket");
@@ -341,10 +341,10 @@ namespace NylonSock
         socklen_t t_size = sizeof(t_data);
         //                         I really don't like c casts...
         SOCKET port = ::accept(sock.port(), (sockaddr*)(&t_data), &t_size);
-
+        
         if(port == INVALID_SOCKET)
         {
-			//requires select to test before
+            //requires select to test before
             throw Error("Failed to accept socket");
         }
         
@@ -355,15 +355,20 @@ namespace NylonSock
     {
         //returns amount of data sent
         //may not equal total amount of data!
-#ifndef PLAT_WIN
-        auto size = ::send(sock.port(), buf, len, flags);
-#else
-		//needs to be cast to const char* for winsock2
-		auto size = ::send(sock.port(), (const char*)buf, len, flags);
-#endif
-        if(size == SOCKET_ERROR)
+        size_t size = 0;
+        while(size != len)
         {
-            throw Error("Failed to send data to socket");
+#ifndef PLAT_WIN
+            size += ::send(sock.port(), buf, len, flags);
+#else
+            //needs to be cast to const char* for winsock2
+            size += ::send(sock.port(), (const char*)buf, len, flags);
+#endif
+            
+            if(size == SOCKET_ERROR)
+            {
+                throw Error("Failed to send data to socket");
+            }
         }
         
         return size;
@@ -374,15 +379,15 @@ namespace NylonSock
 #ifndef PLAT_WIN
         auto size = ::recv(sock.port(), buf, len, flags);
 #else
-		//casting to char* for winsock
-		auto size = ::recv(sock.port(), (char*)buf, len, flags);
+        //casting to char* for winsock
+        auto size = ::recv(sock.port(), (char*)buf, len, flags);
 #endif
         
         if(size == SOCKET_ERROR && errno == ECONNRESET)
         {
             throw PEER_RESET("Connection reset by peer");
         }
-
+        
         if(size == SOCKET_ERROR && errno != EWOULDBLOCK)
         {
             throw Error(std::string{"Failed to receive data from socket."});
@@ -406,7 +411,7 @@ namespace NylonSock
 #ifndef PLAT_WIN
         auto size = ::sendto(sock.port(), buf, len, flags, dest->ai_addr, dest->ai_addrlen);
 #else
-		auto size = ::sendto(sock.port(), (const char*)buf, len, flags, dest->ai_addr, dest->ai_addrlen);
+        auto size = ::sendto(sock.port(), (const char*)buf, len, flags, dest->ai_addr, dest->ai_addrlen);
 #endif
         if(size == SOCKET_ERROR)
         {
@@ -422,8 +427,8 @@ namespace NylonSock
 #ifndef PLAT_WIN
         auto size = ::recvfrom(sock.port(), buf, len, flags, dest->ai_addr, &rm_const);
 #else
-		int rm_const_cast = static_cast<int>(rm_const);
-		auto size = ::recvfrom(sock.port(), (char*)buf, len, flags, dest->ai_addr, &rm_const_cast);
+        int rm_const_cast = static_cast<int>(rm_const);
+        auto size = ::recvfrom(sock.port(), (char*)buf, len, flags, dest->ai_addr, &rm_const_cast);
 #endif
         if(size == SOCKET_ERROR)
         {
@@ -433,7 +438,7 @@ namespace NylonSock
         return size;
     }
     
-	sockaddr_storage getpeername(const Socket& sock)
+    sockaddr_storage getpeername(const Socket& sock)
     {
         //0 initialized again!
         //we also want that ipv6
@@ -444,10 +449,10 @@ namespace NylonSock
         if(port == SOCKET_ERROR)
         {
             throw Error("Failed to get peername");
-		}
-
-
-		return t_data;
+        }
+        
+        
+        return t_data;
     }
     
     std::string gethostname()
@@ -477,8 +482,8 @@ namespace NylonSock
 #ifndef PLAT_WIN
         char success = ::fcntl(sock.port(), SOCKET_TYPE, args);
 #else
-		u_long is_true = 1;
-		char success = ioctlsocket(sock.port(), args, &is_true);
+        u_long is_true = 1;
+        char success = ioctlsocket(sock.port(), args, &is_true);
 #endif
         
         if(success == SOCKET_ERROR)
@@ -606,18 +611,18 @@ namespace NylonSock
     {
         return *_sock.rbegin();
     }
-  
+    
 #endif
-
+    
     size_t FD_Set::size() const
     {
 #ifndef PLAT_WIN
         return _sock.size();
 #else
-		return _set->get()->fd_count;
+        return _set->get()->fd_count;
 #endif
     }
-
+    
     
     fd_set FD_Set::get() const
     {
@@ -634,9 +639,9 @@ namespace NylonSock
         //                                        read      write     except
         char success = ::select(set.getMax() + 1, &data[0], &data[1], &data[2], &timeout);
 #else
-		char success = ::select(NULL, &data[0], &data[1], &data[2], &timeout);
+        char success = ::select(NULL, &data[0], &data[1], &data[2], &timeout);
 #endif
-
+        
         if(success == SOCKET_ERROR)
         {
             throw Error("Failed to select ports");
@@ -682,7 +687,7 @@ namespace NylonSock
 #ifndef PLAT_WIN
         char success = ::setsockopt(sock.port(), level, optname, optval, optlen);
 #else
-		char success = ::setsockopt(sock.port(), level, optname, (const char*)optval, optlen);
+        char success = ::setsockopt(sock.port(), level, optname, (const char*)optval, optlen);
 #endif
         if(success == SOCKET_ERROR)
         {
@@ -696,7 +701,7 @@ namespace NylonSock
         char data[DATA_SIZE];
         
         auto success = ::inet_ntop(sock->ai_family, sock->ai_addr , data, sizeof(data) );
-
+        
         if(success == nullptr)
         {
             throw Error("Failed to inet_ntop");
