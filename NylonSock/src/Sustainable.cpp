@@ -24,8 +24,9 @@
 
 namespace NylonSock
 {
-    constexpr size_t sizeint32 = sizeof(uint32_t);
-    constexpr uint32_t maximum32bit = std::numeric_limits<uint32_t>::max();
+    typedef uint32_t sock_size_type;
+    constexpr size_t sizeint32 = sizeof(sock_size_type);
+    constexpr sock_size_type maximum32bit = std::numeric_limits<sock_size_type>::max();
     
     
     TOOBIG::TOOBIG(std::string what) : std::runtime_error(what)
@@ -54,8 +55,8 @@ namespace NylonSock
         //assumes socket is already binded
         std::string raw_data = data.getRaw();
         
-        uint32_t sizeofstr = htonl(raw_data.size() );
-        uint32_t sizeofevent = htonl(event_name.size() );
+        sock_size_type sizeofstr = htonl(raw_data.size() );
+        sock_size_type sizeofevent = htonl(event_name.size() );
         
         //sending size of data
         send(socket, &sizeofstr, sizeint32, NULL);
@@ -129,7 +130,7 @@ namespace NylonSock
     
     void recvData(Socket& sock, std::unordered_map<std::string, SockFunc>& _functions)
     {
-        uint32_t datalen, messagelen;
+        sock_size_type datalen, messagelen;
         
         //recieves data from client
         //also assumes socket is non blocking
@@ -149,6 +150,7 @@ namespace NylonSock
         messagelen = ntohl(messagelen);
         
         //allocate buffers!
+        //char is not guaranteed 8 bit
         std::vector<uint8_t> message, data;
         
         message.resize(messagelen, 0);
