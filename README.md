@@ -9,6 +9,37 @@ The function names should remain unchanged resulting in easy understanding and p
 
 #Documentation (Incomplete!)
 
+Creating a server is easy, just do
+
+```
+Server<CLIENTSOCK> serv {PORTNUM}
+
+serv.onConnect([](CLIENTSOCK& sock)
+{
+	sock.emit(“Hallo”, {“ok”})
+});
+```
+
+Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
+
+What the code above does is sends the message “ok” when a client connects with the event name “Hallo”.
+
+A client can be written as
+
+```
+Client client{CONNECT_IP, PORT_NUM};
+client.on{“Hallo”, [](SockData data)
+{
+	std::out << data.getRaw() << std::end;
+}
+
+```
+
+When a client connects to a server, it will print out “ok.”
+
+
+##EVERYTHING PASSED THIS IS LOWER LEVEL
+
 The class this library is built upon is the Sockets class. It takes in the typical things getaddrinfo takes in: node, service, and an address of an addrinfo hint structure.
 
 ```
