@@ -22,13 +22,13 @@ serv.onConnect([](CLIENTSOCK& sock)
 
 Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 
-What the code above does is sends the message “ok” when a client connects with the event name “Hallo”.
+What the code above does is sends the message “ok” under the event name "Hallo" when a client connects.
 
 A client can be written as
 
 ```
 Client client{CONNECT_IP, PORT_NUM};
-client.on{“Hallo”, [](SockData data)
+client.on(“Hallo”, [](SockData data)
 {
 	std::out << data.getRaw() << std::end;
 }
