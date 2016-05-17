@@ -84,10 +84,6 @@ namespace NylonSock
             for(ptr = &res; ptr != nullptr; ptr = res.ai_next)
             {
                 _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
-                if(_sock != INVALID_SOCKET)
-                {
-                    break;
-                }
             }
             
             if(_sock == INVALID_SOCKET)
