@@ -29,8 +29,9 @@ typedef int SOCKET;
 constexpr int SHUT_RD = SD_RECEIVE;
 constexpr int SHUT_WR = SD_SEND;
 constexpr int SHUT_RDWR = SD_BOTH;
-
 #endif
+
+#include <cstring>
 
 namespace NylonSock
 {

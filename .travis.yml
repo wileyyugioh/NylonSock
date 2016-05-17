@@ -12,7 +12,7 @@ addons:
 language: c++
 
 compiler:
-  - clang
+  - clang++
   - g++
   
 install:
