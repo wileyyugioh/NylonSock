@@ -16,7 +16,7 @@ set(EXECUTABLE_OUTPUT_PATH ${TEST_DIR})
 
 ENDIF()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
+set_property(TARGET nylonsock PROPERTY CXX_STANDARD 14)
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/src/")
