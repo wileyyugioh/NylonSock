@@ -1,5 +1,9 @@
 ---
 language: c++
 
+compiler:
+  - clang
+  - g++
+
 script:
   - mkdir build && cd build && cmake .. && make
