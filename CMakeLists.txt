@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8)
+cmake_minimum_required (VERSION 3.1)
 project (nylonsock)
 
 IF (NOT WIN32)
@@ -16,7 +16,7 @@ set(EXECUTABLE_OUTPUT_PATH ${TEST_DIR})
 
 ENDIF()
 
-set_property(TARGET nylonsock PROPERTY CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD 14)
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/src/")
