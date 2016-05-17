@@ -17,6 +17,7 @@ set(EXECUTABLE_OUTPUT_PATH ${TEST_DIR})
 ENDIF()
 
 set (CMAKE_CXX_STANDARD 14)
+set (CMAKE_CXX_STANDARD_REQUIRED on)
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/src/")
