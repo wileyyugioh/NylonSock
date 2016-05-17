@@ -1,6 +1,5 @@
 ---
-language: objective-c
+language: c++
 
-xcode_project: NylonSock.xcodeproj
-xcode_scheme: NylonSock
-
+script:
+  - mkdir build && cd build && cmake .. && make
