@@ -19,7 +19,8 @@ ENDIF()
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y")
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
-include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/NylonSock")
+include_directories("${PROJECT_SOURCE_DIR}/NylonSock/src/")
+
 
 IF (WIN32)
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)

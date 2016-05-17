@@ -9,6 +9,8 @@
 #include "NylonSock.hpp"
 
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 class InClient : public NylonSock::Client
 {
@@ -47,7 +49,13 @@ int main(int argc, const char * argv[])
                   std::cout << data.getRaw() << std::endl;
               });
     
-    client.update();
+    client.start();
+
+    for(int i = 0; i < 10; i++)
+    {
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
+      std::cout << i << std::endl;
+    }
     
     NSRelease();
 }

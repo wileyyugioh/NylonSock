@@ -9,7 +9,7 @@
 #ifndef NylonSock_NylonSock_hpp
 #define NylonSock_NylonSock_hpp
 
-#include "NylonSock/Socket.h"
-#include "NylonSock/Sustainable.h"
+#include "Socket.h"
+#include "Sustainable.h"
 
 #endif

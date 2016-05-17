@@ -9,6 +9,8 @@
 #include "NylonSock.hpp"
 
 #include <iostream>
+#include <thread>
+#include <chrono>
 
 class TestClientSock : public NylonSock::ClientSocket
 {
@@ -34,11 +36,14 @@ int main(int argc, const char * argv[])
 		std::cout << "emiiting" << std::endl;
 	});
 	
+    serv.start();
     while(serv.count() == 0)
     {
-        serv.update();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100) );
     }
     
+    serv.stop();
+
     NSRelease();
 }
 

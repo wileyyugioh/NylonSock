@@ -16,6 +16,8 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include <thread>
+#include <mutex>
 
 namespace NylonSock
 {
@@ -79,11 +81,13 @@ namespace NylonSock
     {
     private:
         typedef void (*ServClientFunc)(UsrSock&);
+        bool _stop_thread;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
         ServClientFunc _func;
-        
+        std::mutex _thr_rw;
+
         void createServer(std::string port)
         {
             addrinfo hints = {0};
@@ -111,8 +115,57 @@ namespace NylonSock
             
             _fdset->set(*_server);
         };
+
+        void update()
+	    {
+            while(true)
+            {
+                _thr_rw.lock();
+                if(_stop_thread)
+                {
+                    _thr_rw.unlock();
+                    break;
+                }
+                _thr_rw.unlock();
+
+                while(true)
+                {
+                    //this is all accepting new clients
+	            //sets[0] is an FD_Set of the sockets ready to be accept
+	            auto sets = select(*_fdset, TimeVal{ 1000 });
+	                    
+	            if (sets[0].size() == 0)
+	            {
+	                break;
+	            }
+
+	                    auto new_sock = accept(*_server);
+	                    
+	                    //it is an actual socket
+	                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+	                    
+	                    //call the on connect func
+	                    _func(*_clients.back() );
+	            }
+	                
+                //updating clients
+                auto it = std::begin(_clients);
+                while(it != _clients.end() )
+                {
+                    if((*it)->getDestroy() == true)
+                    {
+                        it = _clients.erase(it);
+                    }
+                    else
+                    {
+                        (*it)->update();
+                        it++;
+                    }
+                }
+            }
+	    };
     public:
-        Server(std::string port)
+        Server(std::string port) : _stop_thread(false)
         {
             createServer(port);
             addToSet();
@@ -129,48 +182,36 @@ namespace NylonSock
             _func = func;
         };
         
-        void update()
-        {
-            
-            while(true)
-            {
-                //this is all accepting new clients
-				//sets[0] is an FD_Set of the sockets ready to be accept
-				auto sets = select(*_fdset, TimeVal{ 1000 });
-				
-				if (sets[0].size() == 0)
-				{
-					break;
-				}
-
-                auto new_sock = accept(*_server);
-                
-                //it is an actual socket
-                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
-                
-                //call the on connect func
-                _func(*_clients.back() );
-            }
-            
-            //updating clients
-            auto it = std::begin(_clients);
-            while(it != _clients.end() )
-            {
-                if((*it)->getDestroy() == true)
-                {
-                    it = _clients.erase(it);
-                }
-                else
-                {
-                    (*it)->update();
-                    it++;
-                }
-            }
-		   };
-        
         unsigned long count() const
         {
             return _clients.size();
+        };
+
+        void start()
+        {
+            //Prevents making too many threads
+            if(_stop_thread)
+            {
+                return;
+            }
+
+            _thr_rw.lock();
+            _stop_thread = false;
+            _thr_rw.unlock();
+            auto accepter = std::thread(&Server::update, this);
+            accepter.detach();
+        };
+
+        void stop()
+        {
+            _thr_rw.lock();
+            _stop_thread = true;
+            _thr_rw.unlock();
+        };
+
+        bool status() const
+        {
+            return _stop_thread;
         };
     };
     
@@ -183,6 +224,10 @@ namespace NylonSock
         
         //client socket has similar interface
         std::unique_ptr<ClientSocket> _inter;
+
+        std::mutex _thr_rw;
+        bool _stop_thread;
+
         
         void createListener(std::string ip, std::string port);
     public:
@@ -194,6 +239,9 @@ namespace NylonSock
         void emit(std::string event_name, const SockData& data) override;
         void update() override;
         bool getDestroy() const override;
+        void start();
+        void stop();
+        bool status() const;
 
     };
 }

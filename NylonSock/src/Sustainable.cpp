@@ -116,6 +116,33 @@ namespace NylonSock
     {
         return _inter->getDestroy();
     }
+
+    void Client::start()
+    {
+        //Prevents making too many threads
+        if(_stop_thread)
+        {
+            return;
+        }
+
+        _thr_rw.lock();
+        _stop_thread = false;
+        _thr_rw.unlock();
+        auto accepter = std::thread(&Client::update, this);
+        accepter.detach();
+    };
+
+    void Client::stop()
+    {
+        _thr_rw.lock();
+        _stop_thread = true;
+        _thr_rw.unlock();
+    };
+
+    bool Client::status() const
+    {
+        return _stop_thread;
+    };
     
     void ClientSocket::emit(std::string event_name, const NylonSock::SockData &data)
     {
