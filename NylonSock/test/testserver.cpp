@@ -12,12 +12,11 @@
 #include <thread>
 #include <chrono>
 
-class TestClientSock : public NylonSock::ClientSocket
+class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 {
 public:
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock)
+    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock, this)
     {
-        std::cout << "ayylmao" << std::endl;
     }
 };
 
@@ -27,12 +26,16 @@ int main(int argc, const char * argv[])
 	NSInit();
 
 	std::cout << gethostname() << std::endl;
-	
+    std::cout << "What text do you want to send?" << std::endl;
+    
+    static std::string tosend;
+
+    std::cin >> tosend;
 	
 	Server<TestClientSock> serv{ 3490 };
 	serv.onConnect([](TestClientSock& sock)
 	{
-		sock.emit("DANK", { "ya know it" });
+		sock.emit("DANK", {tosend});
 		std::cout << "emiiting" << std::endl;
 	});
 	

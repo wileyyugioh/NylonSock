@@ -12,13 +12,16 @@
 #include <chrono>
 #include <thread>
 
-class InClient : public NylonSock::Client
+class InClient : public NylonSock::Client<InClient>
 {
+private:
 public:
     InClient(std::string ip, int port) : Client(ip, port)
     {
         std::cout << "ay?" << std::endl;
     }
+
+    std::string rand;
 };
 
 int main(int argc, const char * argv[])
@@ -39,23 +42,22 @@ int main(int argc, const char * argv[])
     std::cout << gethostname() << std::endl;
     
     InClient client{MYIP, 3490};
-    client.on("AAA", [](SockData data)
+    client.rand = "hello";
+    client.on("DANK", [](SockData data, InClient& ps)
               {
-                  std::cout << "A" << std::endl;
-                  std::cout << data.getRaw() << std::endl;
-              });
-    client.on("DANK", [](SockData data)
-              {
+                  std::cout << ps.rand << std::endl;
                   std::cout << data.getRaw() << std::endl;
               });
     
     client.start();
 
-    for(int i = 0; i < 10; i++)
+    for(int i = 0; i < 5; i++)
     {
       std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
       std::cout << i << std::endl;
     }
+
+    client.stop();
     
     NSRelease();
 }
