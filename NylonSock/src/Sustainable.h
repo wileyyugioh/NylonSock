@@ -288,10 +288,10 @@ namespace NylonSock
 
                     auto new_sock = accept(*_server);
                     
+                    _clsz_rw.lock();
                     //it is an actual socket
                     _clients.push_back(std::make_unique<UsrSock>(new_sock) );
 
-                    _clsz_rw.lock();
                     _clients_size = _clients.size();
                     _clsz_rw.unlock();
                     
@@ -305,7 +305,9 @@ namespace NylonSock
             {
                 if((*it)->getDestroy() == true)
                 {
+                    _clsz_rw.lock();
                     it = _clients.erase(it);
+                    _clsz_rw.unlock();
                 }
                 else
                 {
@@ -343,7 +345,21 @@ namespace NylonSock
         Server(int port) : Server(std::to_string(port) )
         {
         };
+
+        ~Server()
+        {
+            stop();
+            std::lock_guard<std::mutex> end(_fin);
+        }
         
+        Server(const Server& that) = delete;
+
+        Server& operator=(const Server& that) = delete;
+
+        Server(const Server&& that) = delete;
+
+        Server& operator=(const Server&& that) = delete;
+       
         void onConnect(ServClientFunc func)
         {
             _func = func;
@@ -385,12 +401,12 @@ namespace NylonSock
             return _stop_thread;
         };
 
-        ~Server()
+        UsrSock& getUsrSock(unsigned int pos)
         {
-            stop();
-            std::lock_guard<std::mutex> end(_fin);
-        }
-        
+            std::lock_guard<std::mutex> lock{_clsz_rw};
+            return *_clients.at(pos);
+        };
+
     };
     
     //I really don't want to do any more work
@@ -432,7 +448,15 @@ namespace NylonSock
             stop();
             std::lock_guard<std::mutex> end{_fin};
         };
-        
+
+        Client(const Client& that) = delete;
+
+        Client& operator=(const Client& that) = delete;
+
+        Client(const Client&& that) = delete;
+
+        Client& operator=(const Client&& that) = delete;
+
         void on(std::string event_name, SockFunc<T> func) override
         {
             _inter->on(event_name, func);

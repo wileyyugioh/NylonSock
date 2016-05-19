@@ -18,7 +18,6 @@ private:
 public:
     InClient(std::string ip, int port) : Client(ip, port)
     {
-        std::cout << "ay?" << std::endl;
     }
 
     std::string rand;
@@ -42,19 +41,18 @@ int main(int argc, const char * argv[])
     std::cout << gethostname() << std::endl;
     
     InClient client{MYIP, 3490};
-    client.rand = "hello";
-    client.on("DANK", [](SockData data, InClient& ps)
+    std::cout << "What text do you want to send?" << std::endl;
+    std::cin >> client.rand;
+    client.on("Event", [](SockData data, InClient& ps)
               {
-                  std::cout << ps.rand << std::endl;
-                  std::cout << data.getRaw() << std::endl;
+                  ps.emit("okay", {ps.rand});
               });
     
     client.start();
 
-    for(int i = 0; i < 5; i++)
+    for(int i = 0; i < 50; i++)
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
-      std::cout << i << std::endl;
+      std::this_thread::sleep_for(std::chrono::milliseconds(100) );
     }
 
     client.stop();

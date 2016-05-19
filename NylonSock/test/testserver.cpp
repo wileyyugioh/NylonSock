@@ -18,6 +18,8 @@ public:
     TestClientSock(NylonSock::Socket sock) : ClientSocket(sock, this)
     {
     }
+
+    std::string rand_text;
 };
 
 int main(int argc, const char * argv[])
@@ -26,25 +28,23 @@ int main(int argc, const char * argv[])
 	NSInit();
 
 	std::cout << gethostname() << std::endl;
-    std::cout << "What text do you want to send?" << std::endl;
     
-    static std::string tosend;
-
-    std::cin >> tosend;
-	
 	Server<TestClientSock> serv{ 3490 };
 	serv.onConnect([](TestClientSock& sock)
 	{
-		sock.emit("DANK", {tosend});
-		std::cout << "emiiting" << std::endl;
+		sock.emit("Event", {"This is being sent to all Event text!"});
+        sock.on("okay", [](SockData data, TestClientSock& ps)
+            {
+                std::cout << data.getRaw() << std::endl;
+            });
 	});
 	
     serv.start();
-    while(serv.count() == 0)
+    while(serv.count() < 5)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(100) );
     }
-    
+
     serv.stop();
 
     NSRelease();
