@@ -18,27 +18,121 @@ serv.onConnect([](CLIENTSOCK& sock)
 {
 	sock.emit(“Hallo”, {“ok”})
 });
+
+serv.start();
 ```
 
 Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 
+```
+    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+    {
+        public:
+            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock, this)
+            {
+            }
+    }
+```
+
 What the code above does is sends the message “ok” under the event name "Hallo" when a client connects.
 
-A client can be written as
+Clients are inherited by the NylonSock::Client class and pass in itself as a template.
 
 ```
-Client client{CONNECT_IP, PORT_NUM};
-client.on(“Hallo”, [](SockData data)
-{
-	std::out << data.getRaw() << std::end;
-}
+    class CUSTCLIENT : public NylonSock::Client<CUSTCLIENT>
+    {
+        public:
+            CUSTCLIENT(std::string ip, int port) : Client(ip, port)
+            {
+            }
+    }
 
+    CUSTCLIENT client{"MYIP", PORTNUM};
+    client.on("hallo", [](SockData data, InClient& ps)
+        {
+            std::cout << data.getRaw() << std::endl;
+        });
+
+    client.start();
 ```
 
-When a client connects to a server, it will print out “ok.”
+When a client receives the hallo event from a server, it will print out “ok.”
 
+#The Gritty
 
-##EVERYTHING PASSED THIS IS LOWER LEVEL
+The Client class and the ClientSocket class have the same functions.
+
+##*.on(EventName, Func);
+
+The on function takes in a string EventName for the event to act upon and a function Func, which is void and takes in a SockData for the first parameter and for the second a reference to the class that is calling it, be it a ClientSocket, a Client, or anything inherited from it.
+
+##*.emit(EventName, Data);
+
+The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
+
+##*.start()
+
+Only for Client class and Server Class. Starts the server's updating functions.
+
+##*.stop()
+
+Only for Client class and Server Class. Stops the updating function. Automatically called upon destruction.
+
+##Client Class
+
+Uses CRTP
+
+On destruction, stop is automatically called.
+
+###Functions
+
+void on
+
+void emit
+
+bool getDestroy():
+
+    When a server disconnects from a client, it destroy's the client's socket. This can be used to check if the client's socket is destroyed.
+
+void start
+
+void stop
+
+bool status():
+
+    Returns the status of the client. If true, then start has been called. If false, then the client has stopped.
+
+##Server Class
+
+Takes in a ClientSocket as a template.
+
+Please use CRTP
+
+###Functions
+
+onConnect:
+
+    takes in as a parameter a function that takes in as an argument a reference to the ClientSocket that is passed into the template. 
+
+void start
+
+void stop
+
+bool status
+
+UsrSock& getUsrSock(unsigned int pos):
+
+    All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the pos, and this function will return a reference to it.
+
+##ClientSocket class
+
+void on
+
+void emit
+
+bool getDestroy
+
+#EVERYTHING PASSED THIS IS LOWER LEVEL
 
 The class this library is built upon is the Sockets class. It takes in the typical things getaddrinfo takes in: node, service, and an address of an addrinfo hint structure.
 

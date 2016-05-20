@@ -181,6 +181,11 @@ namespace NylonSock
             emitSend(event_name, data, *_client);
         };
 
+        bool getDestroy() const override
+        {
+            return _destroy_flag;
+        };
+
         void update() override
         {
             try
@@ -220,10 +225,7 @@ namespace NylonSock
                 throw e;
             }
         };
-        bool getDestroy() const override
-        {
-            return _destroy_flag;
-        };
+
     };
     
     //dummy
@@ -434,6 +436,29 @@ namespace NylonSock
             connect(*_server);
         };
 
+        void update() override
+        {
+            std::lock_guard<std::mutex> end{_fin};
+            try
+            {
+                while(true)
+                {
+                    _thr_rw.lock();
+                    if(_stop_thread)
+                    {
+                        _thr_rw.unlock();
+                        break;
+                    }
+                    _thr_rw.unlock();
+                    _inter->update();
+                }
+            }
+            catch(NylonSock::SOCK_CLOSED& e)
+            {
+                stop();
+            }
+        };
+
     public:
         Client(std::string ip, std::string port)
         {
@@ -465,29 +490,6 @@ namespace NylonSock
         void emit(std::string event_name, const SockData& data) override
         {
             _inter->emit(event_name, data);
-        };
-
-        void update() override
-        {
-            std::lock_guard<std::mutex> end{_fin};
-            try
-            {
-                while(true)
-                {
-                    _thr_rw.lock();
-                    if(_stop_thread)
-                    {
-                        _thr_rw.unlock();
-                        break;
-                    }
-                    _thr_rw.unlock();
-                    _inter->update();
-                }
-            }
-            catch(NylonSock::SOCK_CLOSED& e)
-            {
-                stop();
-            }
         };
 
         bool getDestroy() const override
