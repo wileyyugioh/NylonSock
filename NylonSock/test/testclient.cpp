@@ -40,24 +40,11 @@ int main(int argc, const char * argv[])
     using namespace NylonSock;
     
     std::cout << gethostname() << std::endl;
-    
-<<<<<<< Updated upstream
+
     NylonSock::Client<InClient> client{MYIP, 3490};
     std::cout << "What text do you want to send?" << std::endl;
     std::cin >> client.get().rand;
     client.on("Event", &toBeCalled);
-=======
-    InClient client{MYIP, 27015};
-    client.on("AAA", [](SockData data)
-              {
-                  std::cout << "A" << std::endl;
-                  std::cout << data.getRaw() << std::endl;
-              });
-    client.on("DANK", [](SockData data)
-              {
-                  std::cout << data.getRaw() << std::endl;
-              });
->>>>>>> Stashed changes
     
     client.start();
 
