@@ -28,7 +28,7 @@ Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
     class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
     {
         public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock, this)
+            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock)
             {
             }
     }
@@ -36,19 +36,19 @@ Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 
 What the code above does is sends the message “ok” under the event name "Hallo" when a client connects.
 
-Clients are inherited by the NylonSock::Client class and pass in itself as a template.
+Clients use the same format as servers.
 
 ```
-    class CUSTCLIENT : public NylonSock::Client<CUSTCLIENT>
+    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
     {
         public:
-            CUSTCLIENT(std::string ip, int port) : Client(ip, port)
+            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock)
             {
             }
     }
 
-    CUSTCLIENT client{"MYIP", PORTNUM};
-    client.on("hallo", [](SockData data, InClient& ps)
+    NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
+    client.on("hallo", [](SockData data, CLIENTSOCK& ps)
         {
             std::cout << data.getRaw() << std::endl;
         });
@@ -66,6 +66,17 @@ The Client class and the ClientSocket class have the same functions.
 
 The on function takes in a string EventName for the event to act upon and a function Func, which is void and takes in a SockData for the first parameter and for the second a reference to the class that is calling it, be it a ClientSocket, a Client, or anything inherited from it.
 
+An example function to pass to *.on is this:
+
+```
+void myfunc(SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
+{
+    mccsc.data = data.getRaw();
+}
+```
+
+Please note that the function is void, and the first parameter is a SockData, and the second is the ClientSocket or inherited class that you passed to the server or class in the form of a template.
+
 ##*.emit(EventName, Data);
 
 The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
@@ -80,9 +91,13 @@ Only for Client class and Server Class. Stops the updating function. Automatical
 
 ##Client Class
 
-Uses CRTP
+Takes in as a template a ClientSocket class or an inherited class.
 
 On destruction, stop is automatically called.
+
+Constructor:
+
+Takes in a string for the address to connect to for the first argument, and for the second takes in an int for the port to listen to.
 
 ###Functions
 
@@ -92,7 +107,7 @@ void emit
 
 bool getDestroy():
 
-    When a server disconnects from a client, it destroy's the client's socket. This can be used to check if the client's socket is destroyed.
+When a server disconnects from a client, it destroy's the client's socket. This can be used to check if the client's socket is destroyed.
 
 void start
 
@@ -100,7 +115,11 @@ void stop
 
 bool status():
 
-    Returns the status of the client. If true, then start has been called. If false, then the client has stopped.
+Returns the status of the client. If true, then start has been called. If false, then the client has stopped.
+
+T& get():
+
+Returns a reference to the ClientSocket or inherited class you passed in.
 
 ##Server Class
 
@@ -112,7 +131,7 @@ Please use CRTP
 
 onConnect:
 
-    takes in as a parameter a function that takes in as an argument a reference to the ClientSocket that is passed into the template. 
+takes in as a parameter a function that takes in as an argument a reference to the ClientSocket that is passed into the template. 
 
 void start
 
@@ -122,9 +141,17 @@ bool status
 
 UsrSock& getUsrSock(unsigned int pos):
 
-    All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the pos, and this function will return a reference to it.
+All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the pos, and this function will return a reference to it.
 
 ##ClientSocket class
+
+Constructor:
+
+Takes in a NylonSock::Socket as an argument.
+
+The template takes in a ClientSocket class or any inherited class.
+
+###Functions
 
 void on
 

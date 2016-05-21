@@ -32,9 +32,13 @@ constexpr int SHUT_RDWR = SD_BOTH;
 #endif
 
 #include <cstring>
+#include <mutex>
 
 namespace NylonSock
 {
+
+    NSHelper::CountWrap NSHelper::_cw{};
+
     void NSInit()
     {
 #ifdef PLAT_WIN
@@ -56,6 +60,23 @@ namespace NylonSock
 #ifdef PLAT_WIN
         WSACleanup();
 #endif
+    }
+
+    NSHelper::NSHelper()
+    {
+        //is this thread safe? Who the hell knows?
+        if(_cw++ == 0)
+        {
+            NSInit();
+        }
+    }
+
+    NSHelper::~NSHelper()
+    {
+        if(--_cw == 0)
+        {
+            NSRelease();
+        }
     }
     
     Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )

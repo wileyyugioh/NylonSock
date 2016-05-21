@@ -15,7 +15,7 @@
 class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 {
 public:
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock, this)
+    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock)
     {
     }
 
@@ -25,7 +25,6 @@ public:
 int main(int argc, const char * argv[])
 {
 	using namespace NylonSock;
-	NSInit();
 
 	std::cout << gethostname() << std::endl;
     
@@ -46,7 +45,5 @@ int main(int argc, const char * argv[])
     }
 
     serv.stop();
-
-    NSRelease();
 }
 

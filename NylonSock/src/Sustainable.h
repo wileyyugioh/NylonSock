@@ -163,7 +163,7 @@ namespace NylonSock
         }
 
     public:
-        ClientSocket(Socket sock, T* round) : top_class(round)
+        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) )
         {
             _client = std::make_unique<Socket>(sock);
         };
@@ -222,6 +222,8 @@ namespace NylonSock
                 _functions.clear();
                 _self_fd = nullptr;
                 
+                _destroy_flag = true;
+
                 throw e;
             }
         };
@@ -237,11 +239,11 @@ namespace NylonSock
     {
     private:
         typedef void (*ServClientFunc)(UsrSock&);
-        bool _stop_thread;
+        bool _stop_thread = false;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
-        size_t _clients_size;
+        size_t _clients_size = 0;
         ServClientFunc _func;
         std::mutex _thr_rw;
         std::mutex _clsz_rw;
@@ -313,8 +315,15 @@ namespace NylonSock
                 }
                 else
                 {
-                    (*it)->update();
-                    it++;
+                    try
+                    {
+                        (*it)->update();
+                        it++;
+                    }
+                    catch(SOCK_CLOSED& e)
+                    {
+                        //ignore it for now
+                    }
                 }
             }
             _clsz_rw.lock();
@@ -338,7 +347,7 @@ namespace NylonSock
             _thr_rw.unlock();
         }
     public:
-        Server(std::string port) : _stop_thread(false), _clients_size(0)
+        Server(std::string port)
         {
             createServer(port);
             addToSet();
@@ -411,16 +420,19 @@ namespace NylonSock
 
     };
     
+    template <class T, class Dummy = void>
+    class Client;
+
     //I really don't want to do any more work
     template <class T>
-    class Client : public ClientInterface<T>
+    class Client<T, typename std::enable_if<std::is_base_of<ClientSocket<T>, T>::value>::type> : public ClientInterface<T>
     {
     private:
         //see top of cpp file to see how data is sent
         std::unique_ptr<Socket> _server;
         
         //client socket has similar interface
-        std::unique_ptr<ClientSocket<T> > _inter;
+        std::unique_ptr<T> _inter;
 
         std::mutex _thr_rw;
         bool _stop_thread = false;
@@ -463,7 +475,7 @@ namespace NylonSock
         Client(std::string ip, std::string port)
         {
              createListener(ip, port);
-            _inter = std::make_unique<ClientSocket<T> >(*_server, static_cast<T*>(this) );
+            _inter = std::make_unique<T>(*_server);
         };
 
         Client(std::string ip, int port) : Client(ip, std::to_string(port) ) {};
@@ -523,6 +535,12 @@ namespace NylonSock
         {
             return _stop_thread;
         };
+
+        T& get()
+        {
+            std::lock_guard<std::mutex> lock(_thr_rw);
+            return *_inter;
+        }
 
     };
 }
