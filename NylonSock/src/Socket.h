@@ -61,7 +61,7 @@ namespace NylonSock
 
     public:
         NSHelper();
-        NSHelper& NSHelper(const NSHelper& that);
+        NSHelper(const NSHelper& that);
         NSHelper& NSHelper(NSHelper&& that) = delete;
         ~NSHelper();
     };
