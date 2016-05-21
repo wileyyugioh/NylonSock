@@ -367,9 +367,9 @@ namespace NylonSock
 
         Server& operator=(const Server& that) = delete;
 
-        Server(const Server&& that) = delete;
+        Server(Server&& that) = delete;
 
-        Server& operator=(const Server&& that) = delete;
+        Server& operator=(Server&& that) = delete;
        
         void onConnect(ServClientFunc func)
         {
@@ -490,9 +490,9 @@ namespace NylonSock
 
         Client& operator=(const Client& that) = delete;
 
-        Client(const Client&& that) = delete;
+        Client(Client&& that) = delete;
 
-        Client& operator=(const Client&& that) = delete;
+        Client& operator=(Client&& that) = delete;
 
         void on(std::string event_name, SockFunc<T> func) override
         {

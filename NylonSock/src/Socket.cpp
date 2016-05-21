@@ -71,6 +71,11 @@ namespace NylonSock
         }
     }
 
+    NSHelper& NSHelper::NSHelper(const NSHelper& that)
+    {
+        _cw++;
+    }
+
     NSHelper::~NSHelper()
     {
         if(--_cw == 0)
