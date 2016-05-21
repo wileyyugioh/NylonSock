@@ -27,8 +27,15 @@ int main(int argc, const char * argv[])
 	using namespace NylonSock;
 
 	std::cout << gethostname() << std::endl;
+<<<<<<< Updated upstream
     
 	Server<TestClientSock> serv{ 3490 };
+=======
+	
+	doit();
+
+	Server<TestClientSock> serv{ 27015 };
+>>>>>>> Stashed changes
 	serv.onConnect([](TestClientSock& sock)
 	{
 		sock.emit("Event", {"This is being sent to all Event text!"});
