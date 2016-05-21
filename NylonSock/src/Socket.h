@@ -57,37 +57,7 @@ namespace NylonSock
     class NSHelper
     {
     private:
-        class CountWrap
-        {
-        private:
-            int _count;
-            std::mutex mute;
-
-        public:
-            void set(int val)
-            {
-                std::lock_guard<std::mutex> a{mute};
-                _count = val;
-            }
-
-            int get()
-            {
-                std::lock_guard<std::mutex> a{mute};
-                return _count;
-            }
-            
-            int operator++(int)
-            {
-                return _count++;
-            }
-
-            int operator--()
-            {
-                return --_count;
-            }
-        }; 
-
-        static CountWrap _cw;
+        static int _cw;
 
     public:
         NSHelper();

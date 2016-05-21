@@ -37,7 +37,7 @@ constexpr int SHUT_RDWR = SD_BOTH;
 namespace NylonSock
 {
 
-    NSHelper::CountWrap NSHelper::_cw{};
+    int NSHelper::_cw = 0;
 
     void NSInit()
     {
