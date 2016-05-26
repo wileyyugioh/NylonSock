@@ -252,7 +252,9 @@ namespace NylonSock
         void createServer(std::string port)
         {
             addrinfo hints = {0};
-            hints.ai_family = AF_UNSPEC;
+            //force server to be ipv6
+            //ipv4 and ipv6 addresses can connect
+            hints.ai_family = AF_INET6;
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_flags = AI_PASSIVE;
             
