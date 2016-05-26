@@ -83,10 +83,59 @@ namespace NylonSock
             NSRelease();
         }
     }
-    
-    Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
+#ifdef not(PLAT_WIN)
+    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
     {
     }
+#else
+	class WinStringWrap
+	{
+	private:
+		LPSTR errString;
+	public:
+		WinStringWrap() = default;
+
+		~WinStringWrap()
+		{
+			LocalFree(errString);
+		};
+
+		LPSTR& get()
+		{
+			return errString;
+		};
+	};
+
+	std::string translateError()
+	{
+		int errCode = WSAGetLastError();
+		WinStringWrap wrap;
+
+		int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM, // use windows internal message table
+			0,       // 0 since source is internal message table
+			errCode, // this is the error code returned by WSAGetLastError()
+					 // Could just as well have been an error code from generic
+					 // Windows errors from GetLastError()
+			0,       // auto-determine language to use
+			(LPSTR)&wrap.get(), // this is WHERE we want FormatMessage
+							   // to plunk the error string.  Note the
+							   // peculiar pass format:  Even though
+							   // errString is already a pointer, we
+							   // pass &errString (which is really type LPSTR* now)
+							   // and then CAST IT to (LPSTR).  This is a really weird
+							   // trip up.. but its how they do it on msdn:
+							   // http://msdn.microsoft.com/en-us/library/ms679351(VS.85).aspx
+			0,                 // min size for buffer
+			0);
+
+		return wrap.get();
+	}
+
+	Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() )
+	{
+	}
+#endif
     
     Error::Error(std::string what, bool null) : std::runtime_error(what)
     {
@@ -344,13 +393,20 @@ namespace NylonSock
     
     void connect(const Socket& sock)
     {
-        //connects socket to host
-        char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
-        
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to connect to socket");
-        }
+		try
+		{
+			//connects socket to host
+			char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
+
+			if (success == SOCKET_ERROR)
+			{
+				throw Error("Failed to connect to socket");
+			}
+		}
+		catch (std::exception& e)
+		{
+			std::cerr << e.what() << std::endl;
+		}
     }
     
     void listen(const Socket& sock, unsigned char backlog)

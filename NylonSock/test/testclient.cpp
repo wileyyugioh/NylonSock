@@ -29,6 +29,7 @@ void toBeCalled(NylonSock::SockData data, InClient& ps)
 }
 int main(int argc, const char * argv[])
 {
+	
     if(argc == 1)
     {
         std::cout << "First argument is the ip to connect to" << std::endl;
@@ -41,7 +42,7 @@ int main(int argc, const char * argv[])
     
     std::cout << gethostname() << std::endl;
 
-    NylonSock::Client<InClient> client{MYIP, 3490};
+    NylonSock::Client<InClient> client{"192.168.29.166", 3490};
     std::cout << "What text do you want to send?" << std::endl;
     std::cin >> client.get().rand;
     client.on("Event", &toBeCalled);
