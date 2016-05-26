@@ -83,11 +83,7 @@ namespace NylonSock
             NSRelease();
         }
     }
-#ifdef not(PLAT_WIN)
-    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
-    {
-    }
-#else
+#ifdef PLAT_WIN
 	class WinStringWrap
 	{
 	private:
@@ -135,6 +131,10 @@ namespace NylonSock
 	Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() )
 	{
 	}
+#else
+    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
+    {
+    }
 #endif
     
     Error::Error(std::string what, bool null) : std::runtime_error(what)
