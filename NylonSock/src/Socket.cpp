@@ -393,19 +393,12 @@ namespace NylonSock
     
     void connect(const Socket& sock)
     {
-		try
-		{
-			//connects socket to host
-			char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
+		//connects socket to host
+		char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
 
-			if (success == SOCKET_ERROR)
-			{
-				throw Error("Failed to connect to socket");
-			}
-		}
-		catch (std::exception& e)
+		if (success == SOCKET_ERROR)
 		{
-			std::cerr << e.what() << std::endl;
+			throw Error("Failed to connect to socket");
 		}
     }
     
