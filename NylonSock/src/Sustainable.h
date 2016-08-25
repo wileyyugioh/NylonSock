@@ -149,6 +149,11 @@ namespace NylonSock
         {
             auto stosize_t = [](std::string str)
             {
+                if(std::find_if(str.begin(), str.end(), [](char c){return !std::isdigit(c);}) != str.end() )
+                {
+                    throw CLOSE{"Bad Header (Letters instead of digits)"};
+                }
+
                 size_t data;
                 sscanf(str.c_str(), "%zu", &data);
 
@@ -173,19 +178,6 @@ namespace NylonSock
             
             //receive event length
             success = recv(sock, &eventlen, data_size, NULL);
-
-            auto isdigit = [](std::string s)
-            {
-            	return std::find_if(s.begin(), s.end(), ::isdigit) != s.end();
-            };
-
-            //prevent bad data (everything before should only have numbers)
-            if(!isdigit(eventlen) || !isdigit(datalen) )
-            {
-            	//ignore the data and close connection
-            	throw CLOSE{"Bad Header (Letters instead of digits)"};
-            }
-
             
             //allocate buffers!
             //char is not guaranteed 8 bit
@@ -275,7 +267,7 @@ namespace NylonSock
 
                 throw e;
             }
-            catch(std::runtime_error& e)
+            catch(std::exception& e)
             {
                 _client = nullptr;
                 _functions.clear();
