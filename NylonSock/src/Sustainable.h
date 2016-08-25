@@ -22,6 +22,7 @@
 #include <thread>
 #include <mutex>
 #include <cstdint>
+#include <algorithm>
 
 /*
  How data is sent:
