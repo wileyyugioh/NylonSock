@@ -12,6 +12,9 @@
 #include "Socket.h"
 
 #include <string>
+#include <iomanip>
+#include <sstream>
+#include <cstdio>
 #include <stdexcept>
 #include <vector>
 #include <memory>
@@ -20,14 +23,13 @@
 #include <mutex>
 #include <cstdint>
 
-
 /*
  How data is sent:
  
  bytes are assumed to be 8 bits
  
- Beginning is uint32_t of size in bytes
- Next is uint32_t of event name size in bytes
+ Beginning is uint16_t of size in bytes
+ Next is uint16_t of event name size in bytes
  Next is name
  Rest is data.
  
@@ -36,9 +38,8 @@
 
 namespace NylonSock
 {
-    typedef uint32_t sock_size_type;
-    constexpr size_t sizeint32 = sizeof(sock_size_type);
-    constexpr sock_size_type maximum32bit = std::numeric_limits<sock_size_type>::max();
+    typedef uint16_t sock_size_type;
+    constexpr sock_size_type maximum_sock_val = std::numeric_limits<sock_size_type>::max();
 
     class FD_Set;
     class Socket;
@@ -50,6 +51,19 @@ namespace NylonSock
     
     template<class Self>
     using SockFunc = void (*)(SockData, Self&);
+    
+    //used for getting num of digits in a number
+    template <unsigned long long N, size_t base=10>
+    struct numberlength
+    {
+        enum { value = 1 + numberlength<N/base, base>::value };            
+    };
+
+    template <size_t base>
+    struct numberlength<0, base>
+    {
+        enum { value = 0 };
+    };
     
     class TOOBIG : public std::runtime_error
     {
@@ -71,21 +85,33 @@ namespace NylonSock
     {
         //sends data to server/client
         
+        //takes in an int, padding length, and a fill character
+        //returns a padded string
+        auto pad_str = [](int str, int padding, char fill)
+        {
+            std::stringstream ss;
+            ss << std::setw(padding) << std::setfill(fill) << str;
+            return ss.str();
+        };
+
         //assumes socket is already binded
         std::string raw_data = data.getRaw();
+       
+        //size of data
+        sock_size_type sizeofstr = raw_data.size();
         
-        sock_size_type sizeofstr = htonl(raw_data.size() );
-        sock_size_type sizeofevent = htonl(event_name.size() );
+        //size of event name
+        sock_size_type sizeofevent = event_name.size();
+
+        //get padding len
+        numberlength<maximum_sock_val> nllen;
+        auto padding_len = nllen.value; 
         
-        //sending size of data
-        send(socket, &sizeofstr, sizeint32, NULL);
-        //sending size of event name
-        send(socket, &sizeofevent, sizeint32, NULL);
-        //sending event name
-        send(socket, event_name.c_str(), event_name.size(), NULL);
-        
+        //formatting data: size of data + size of eventname + eventname + data
+        std::string format_str = pad_str(sizeofstr, padding_len, '0') + pad_str(sizeofevent, padding_len, '0') + event_name + raw_data;
+
         //sending total data
-        send(socket, raw_data.c_str(), raw_data.size(), NULL);
+        send(socket, format_str.c_str(), format_str.size(), NULL);
     }
     
     //have to use CRTP
@@ -104,6 +130,13 @@ namespace NylonSock
     template<class T>
     class ClientSocket : public ClientInterface<T>
     {
+    private:
+    	class CLOSE : public std::runtime_error
+    	{
+    	public:
+    		CLOSE(std::string err) : std::runtime_error(err) {};
+    	};
+
     protected:
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
@@ -114,11 +147,23 @@ namespace NylonSock
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
-            sock_size_type datalen, messagelen;
+            auto stosize_t = [](std::string str)
+            {
+                size_t data;
+                sscanf(str.c_str(), "%zu", &data);
+
+                return data;
+            };
+
+            //gets the size of data in package that tells data size
+            numberlength<maximum_sock_val> nllen;
+            size_t data_size = sizeof(char) * nllen.value;
+
+            char datalen[data_size], eventlen[data_size];
             
-            //recieves data from client
+            //receives data from client
             //also assumes socket is non blocking
-            char success = recv(sock, &datalen, sizeint32, NULL);
+            char success = recv(sock, &datalen, data_size, NULL);
             
             //break when there is no info
             if(success <= 0)
@@ -126,37 +171,49 @@ namespace NylonSock
                 return;
             }
             
-            //receive message length
-            recv(sock, &messagelen, sizeint32, NULL);
-            
-            //convert to host language
-            datalen = ntohl(datalen);
-            messagelen = ntohl(messagelen);
+            //receive event length
+            success = recv(sock, &eventlen, data_size, NULL);
+
+            auto isdigit = [](std::string s)
+            {
+            	return std::find_if(s.begin(), s.end(), ::isdigit) != s.end();
+            };
+
+            //prevent bad data (everything before should only have numbers)
+            if(!isdigit(eventlen) || !isdigit(datalen) )
+            {
+            	//ignore the data and close connection
+            	throw CLOSE{"Bad Header (Letters instead of digits)"};
+            }
+
             
             //allocate buffers!
             //char is not guaranteed 8 bit
-            std::vector<uint8_t> message, data;
+            std::vector<uint8_t> event, data;
             
-            message.resize(messagelen, 0);
-            data.resize(datalen, 0);
+            size_t eventlensize = stosize_t(eventlen);
+            size_t datalensize = stosize_t(datalen);
+
+            event.resize(eventlensize, 0);
+            data.resize(datalensize, 0);
             
-            //receive message data
-            recv(sock, &(message[0]), messagelen, NULL);
+            //receive event data
+            success = recv(sock, &(event[0]), eventlensize, NULL);
             
             //receive data data
-            recv(sock, &(data[0]), datalen, NULL);
+            success = recv(sock, &(data[0]), datalensize, NULL);
             
-            std::string messagestr, datastr;
+            std::string eventstr, datastr;
             
             //copy data into string
-            messagestr.assign(message.begin(), message.end() );
+            eventstr.assign(event.begin(), event.end() );
             datastr.assign(data.begin(), data.end() );
             
             //if the event is in the functions
-            if(_functions.count(messagestr) != 0)
+            if(_functions.count(eventstr) != 0)
             {
                 //call it
-                _functions[messagestr](SockData{datastr}, *top_class);
+                _functions[eventstr](SockData{datastr}, *top_class);
             }
             
             //else, the data gets thrown away
@@ -208,14 +265,6 @@ namespace NylonSock
                     recvData(*_client, _functions);
                 }
             }
-            catch(PEER_RESET& e)
-            {
-                _client = nullptr;
-                _functions.clear();
-                _self_fd = nullptr;
-                
-                _destroy_flag = true;
-            }
             catch (SOCK_CLOSED& e)
             {
                 _client = nullptr;
@@ -225,6 +274,14 @@ namespace NylonSock
                 _destroy_flag = true;
 
                 throw e;
+            }
+            catch(std::runtime_error& e)
+            {
+                _client = nullptr;
+                _functions.clear();
+                _self_fd = nullptr;
+                
+                _destroy_flag = true;
             }
         };
 
@@ -284,50 +341,54 @@ namespace NylonSock
             while(true)
             {
                 //this is all accepting new clients
-            //sets[0] is an FD_Set of the sockets ready to be accept
-            auto sets = select(*_fdset, TimeVal{ 1000 });
+            	//sets[0] is an FD_Set of the sockets ready to be accept
+            	auto sets = select(*_fdset, TimeVal{ 1000 });
                     
-            if (sets[0].size() == 0)
-            {
-                break;
+                if (sets[0].size() == 0)
+                {
+                    break;
+                }
+
+                auto new_sock = accept(*_server);
+                    
+                _clsz_rw.lock();
+                //it is an actual socket
+                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+
+                _clients_size = _clients.size();
+                _clsz_rw.unlock();
+                    
+                //call the on connect func
+                 _func(*_clients.back() );
+
+                 //put update thread
+                 //also takes care of killing and removing client
+                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients)
+                 {
+                 	while(!sock->getDestroy() )
+                 	{
+                 		try
+                 		{
+                 			sock->update();
+                 		}
+                 		catch(SOCK_CLOSED& e)
+                 		{
+                 			//for now do nothing
+                 		}
+                 	}
+
+                 	clsz.lock();
+                 	clients.erase(std::remove_if(clients.begin(), clients.end(), [=](std::unique_ptr<UsrSock>& usrsock)
+                 		{
+                 			return (usrsock.get() == sock);
+                 		}), clients.end() );
+                 	clsz.unlock();
+                 };
+
+                 std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients)};
+                 update_thread.detach();
             }
 
-                    auto new_sock = accept(*_server);
-                    
-                    _clsz_rw.lock();
-                    //it is an actual socket
-                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
-
-                    _clients_size = _clients.size();
-                    _clsz_rw.unlock();
-                    
-                    //call the on connect func
-                    _func(*_clients.back() );
-            }
-	                
-                //updating clients
-            auto it = std::begin(_clients);
-            while(it != _clients.end() )
-            {
-                if((*it)->getDestroy() == true)
-                {
-                    _clsz_rw.lock();
-                    it = _clients.erase(it);
-                    _clsz_rw.unlock();
-                }
-                else
-                {
-                    try
-                    {
-                        (*it)->update();
-                        it++;
-                    }
-                    catch(SOCK_CLOSED& e)
-                    {
-                        //ignore it for now
-                    }
-                }
-            }
             _clsz_rw.lock();
             _clients_size = _clients.size();
             _clsz_rw.unlock();
