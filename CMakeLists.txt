@@ -1,8 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 project (nylonsock)
 
-set(CMAKE_BUILD_TYPE Debug)
-
 IF (NOT WIN32)
 set(INCLUDE_DIR ${PROJECT_NAME})
 set(LIB_DIR ${PROJECT_NAME}/lib)
