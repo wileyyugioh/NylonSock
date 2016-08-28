@@ -20,13 +20,9 @@ public:
     {
     }
 
-    std::string rand;
+    std::string usrname, msg;
 };
 
-void toBeCalled(NylonSock::SockData data, InClient& ps)
-{
-    ps.emit("okay", {ps.rand});
-}
 int main(int argc, const char * argv[])
 {
 	
@@ -43,15 +39,22 @@ int main(int argc, const char * argv[])
     std::cout << gethostname() << std::endl;
 
     NylonSock::Client<InClient> client{MYIP, 3490};
-    std::cout << "What text do you want to send?" << std::endl;
-    std::cin >> client.get().rand;
-    client.on("Event", &toBeCalled);
-    
     client.start();
+    std::cout << "What is your username?" << std::endl;
+    std::getline(std::cin, client.get().usrname);
 
-    for(int i = 0; i < 50; i++)
+    client.emit("usrname", {client.get().usrname});
+    client.on("msgSend", [](SockData data, InClient& client)
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100) );
+        std::cout << data.getRaw() << std::endl;
+    });
+
+    std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
+    while(true)
+    {
+        std::getline(std::cin, client.get().msg);
+
+        client.emit("msgGet", {client.get().msg});
     }
 
     client.stop();

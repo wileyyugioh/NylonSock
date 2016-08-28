@@ -51,7 +51,7 @@ namespace NylonSock
     class ClientSocket;
     
     template<class Self>
-    using SockFunc = void (*)(SockData, Self&);
+    using SockFunc = std::function< void (SockData, Self&)>;
     
     //used for getting num of digits in a number
     template <unsigned long long N, size_t base=10>
@@ -150,13 +150,11 @@ namespace NylonSock
         {
             auto stosize_t = [](std::string str)
             {
-                if(std::find_if(str.begin(), str.end(), [](char c){return !std::isdigit(c);}) != str.end() )
+                size_t data;
+                if(sscanf(str.c_str(), "%zu", &data) != 1)
                 {
                     throw CLOSE{"Bad Header (Letters instead of digits)"};
                 }
-
-                size_t data;
-                sscanf(str.c_str(), "%zu", &data);
 
                 return data;
             };
@@ -178,29 +176,33 @@ namespace NylonSock
             }
             
             //receive event length
-            success = recv(sock, &eventlen, data_size, NULL);
+            recv(sock, &eventlen, data_size, NULL);
             
             //allocate buffers!
             //char is not guaranteed 8 bit
             std::vector<uint8_t> event, data;
-            
-            size_t eventlensize = stosize_t(eventlen);
-            size_t datalensize = stosize_t(datalen);
-
-            event.resize(eventlensize, 0);
-            data.resize(datalensize, 0);
-            
-            //receive event data
-            success = recv(sock, &(event[0]), eventlensize, NULL);
-            
-            //receive data data
-            success = recv(sock, &(data[0]), datalensize, NULL);
-            
             std::string eventstr, datastr;
             
-            //copy data into string
-            eventstr.assign(event.begin(), event.end() );
-            datastr.assign(data.begin(), data.end() );
+            //receive and convert event
+            size_t eventlensize = stosize_t(eventlen);
+
+            //only recv if eventname greater than 0
+            if(eventlensize > 0)
+            {
+                event.resize(eventlensize, 0);
+                recv(sock, &(event[0]), eventlensize, NULL);
+                eventstr.assign(event.begin(), event.end() );
+            }
+
+            //receive and convert data
+            size_t datalensize = stosize_t(datalen);
+
+            if(datalensize > 0)
+            {
+                data.resize(datalensize, 0);
+                recv(sock, &(data[0]), datalensize, NULL);
+                datastr.assign(data.begin(), data.end() );
+            }
             
             //if the event is in the functions
             if(_functions.count(eventstr) != 0)
@@ -288,7 +290,8 @@ namespace NylonSock
     class Server<UsrSock, typename std::enable_if<std::is_base_of<ClientSocket<UsrSock>, UsrSock>::value>::type>
     {
     private:
-        typedef void (*ServClientFunc)(UsrSock&);
+        //typedef void (*ServClientFunc)(UsrSock&);
+        using ServClientFunc = std::function<void (UsrSock&)>;
         bool _stop_thread = false;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
@@ -432,6 +435,14 @@ namespace NylonSock
             _func = func;
         };
         
+        void emit(std::string event_name, SockData data)
+        {
+            for(auto& it : _clients)
+            {
+                it->emit(event_name, data);
+            }
+        };
+
         unsigned long count() 
         {
             _clsz_rw.lock();
@@ -518,6 +529,10 @@ namespace NylonSock
                         break;
                     }
                     _thr_rw.unlock();
+
+                    //break out if the flag is rip
+                    if(_inter->getDestroy() ) break;
+
                     _inter->update();
                 }
             }
@@ -560,7 +575,7 @@ namespace NylonSock
             _inter->emit(event_name, data);
         };
 
-        bool getDestroy() const override
+        bool getDestroy() const
         {
             return _inter->getDestroy();
         };

@@ -19,7 +19,7 @@ public:
     {
     }
 
-    std::string rand_text;
+    std::string usrname;
 };
 
 int main(int argc, const char * argv[])
@@ -30,13 +30,18 @@ int main(int argc, const char * argv[])
     
 	Server<TestClientSock> serv{ 3490 };
 
-	serv.onConnect([](TestClientSock& sock)
+	serv.onConnect([&](TestClientSock& sock)
 	{
-		sock.emit("Event", {"This is being sent to all Event text!"});
-        sock.on("okay", [](SockData data, TestClientSock& ps)
-            {
-                std::cout << data.getRaw() << std::endl;
-            });
+        sock.on("usrname", [](SockData data, TestClientSock& sock)
+        {
+            sock.usrname = data.getRaw();
+        });
+
+        sock.on("msgGet", [&](SockData data, TestClientSock& sock)
+        {
+            std::cout << sock.usrname + ": " + data.getRaw() << std::endl;
+            serv.emit("msgSend", {sock.usrname + ": " + data.getRaw()});
+        });
 	});
 	
     serv.start();

@@ -19,6 +19,9 @@
 #include <sys/errno.h>
 #include <stdlib.h>
 
+//debugging
+#include <iostream>
+
 //make it easier for crossplatform
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
@@ -443,7 +446,7 @@ namespace NylonSock
             //needs to be cast to const char* for winsock2
             size += ::send(sock.port(), (const char*)buf, len, flags);
 #endif
-            
+
             if(size == SOCKET_ERROR)
             {
                 throw Error("Failed to send data to socket");
