@@ -331,7 +331,7 @@ namespace NylonSock
         };
 
         void update()
-	{
+		{
             while(true)
             {
                 //this is all accepting new clients
@@ -505,14 +505,8 @@ namespace NylonSock
             {
                 while(true)
                 {
-                    if(_stop_thread.load() )
-                    {
-                        break;
-                    }
-
-                    //break out if the flag is rip
-                    if(_inter->getDestroy() ) break;
-
+                    if(_stop_thread.load() || _inter->getDestroy) break;
+                    
                     _inter->update();
                 }
             }
