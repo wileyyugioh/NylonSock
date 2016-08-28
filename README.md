@@ -28,9 +28,7 @@ Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
     class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
     {
         public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock)
-            {
-            }
+            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock) {};
     }
 ```
 
@@ -75,6 +73,16 @@ void myfunc(SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
 }
 ```
 
+You can even pass in lambdas that capture!
+
+```
+int value;
+client.on("printValue", [value](SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
+{
+    std::cout << value << std::endl;
+});
+```
+
 Please note that the function is void, and the first parameter is a SockData, and the second is the ClientSocket or inherited class that you passed to the server or class in the form of a template.
 
 ##*.emit(EventName, Data);
@@ -83,7 +91,7 @@ The emit function takes in a string EventName and a SockData class for the secon
 
 ##*.start()
 
-Only for Client class and Server Class. Starts the server's updating functions.
+Only for Client class and Server Class. Starts the server's updating functions for receiving any data.
 
 ##*.stop()
 
@@ -91,7 +99,7 @@ Only for Client class and Server Class. Stops the updating function. Automatical
 
 ##Client Class
 
-Takes in as a template a ClientSocket class or an inherited class.
+Takes in as a template a ClientSocket class or a class inherited from ClientSocket.
 
 On destruction, stop is automatically called.
 
@@ -101,17 +109,17 @@ Takes in a string for the address to connect to for the first argument, and for 
 
 ###Functions
 
-void on
+void on()
 
-void emit
+void emit(std::string msgstr, NylonSock::SockData data)
 
 bool getDestroy():
 
-When a server disconnects from a client, it destroy's the client's socket. This can be used to check if the client's socket is destroyed.
+When a client disconnects from a server, its socket is destroyed. This can be used to check if the client's socket is destroyed.
 
-void start
+void start()
 
-void stop
+void stop()
 
 bool status():
 
@@ -125,19 +133,17 @@ Returns a reference to the ClientSocket or inherited class you passed in.
 
 Takes in a ClientSocket as a template.
 
-Please use CRTP
-
 ###Functions
 
-onConnect:
+onConnect(std::function<void (ClientSocket&)>):
 
-takes in as a parameter a function that takes in as an argument a reference to the ClientSocket that is passed into the template. 
+Is called upon a new client connecting to the server.
 
-void start
+void start()
 
-void stop
+void stop()
 
-bool status
+bool status()
 
 UsrSock& getUsrSock(unsigned int pos):
 
@@ -151,15 +157,17 @@ Takes in a NylonSock::Socket as an argument.
 
 The template takes in a ClientSocket class or any inherited class.
 
+Please use CRTP.
+
 ###Functions
 
-void on
+void on()
 
-void emit
+void emit()
 
-bool getDestroy
+bool getDestroy()
 
-#EVERYTHING PASSED THIS IS LOWER LEVEL
+#EVERYTHING BEYOND THIS IS LOWER LEVEL
 
 The class this library is built upon is the Sockets class. It takes in the typical things getaddrinfo takes in: node, service, and an address of an addrinfo hint structure.
 
@@ -190,7 +198,7 @@ In order to get the port number, use the port method
 sock.port()
 ```
 
-The library also possesses its own functions with the same naming convention as the C UNIX ones. It is very similar, however, it throws an exception class, NylonSock::Error upon failure. 
+The library also possesses its own functions with the same naming convention as the C UNIX ones. The functions are very similar. However, they throw an exception class, NylonSock::Error upon failure instead of returning -1. 
 
 The Error class inherits from std::runtime_exception.
 
@@ -212,7 +220,20 @@ f_set.zero()
 f_set.getMax()
 ```
 
-A function select, is given, which takes in a FD_Set and a timeval struct and returns a vector of fd_set. A class TimeVal which converts milliseconds to a timeval struct is given. An example would be TOBECONTINUED
+A function select, is given, which takes in a FD_Set and a timeval struct and returns a vector of FD_Set. A class TimeVal which converts milliseconds to a timeval struct is given. An example would be
+
+```
+auto sel = select(f_set, TimeVal{1000});
+
+//read
+sel[0]
+
+//write
+sel[1]
+
+//except
+sel[2]
+```
 
 
 Todo:
