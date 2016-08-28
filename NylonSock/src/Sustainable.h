@@ -290,7 +290,6 @@ namespace NylonSock
     class Server<UsrSock, typename std::enable_if<std::is_base_of<ClientSocket<UsrSock>, UsrSock>::value>::type>
     {
     private:
-        //typedef void (*ServClientFunc)(UsrSock&);
         using ServClientFunc = std::function<void (UsrSock&)>;
         bool _stop_thread = false;
         std::unique_ptr<FD_Set> _fdset;
@@ -333,11 +332,11 @@ namespace NylonSock
         };
 
         void update()
-	    {
+	{
             while(true)
             {
                 //this is all accepting new clients
-            	//sets[0] is an FD_Set of the sockets ready to be accept
+            	//sets[0] is an FD_Set of the sockets ready to be accepted
             	auto sets = select(*_fdset, TimeVal{ 1000 });
                     
                 if (sets[0].size() == 0)
@@ -354,14 +353,14 @@ namespace NylonSock
                 _clients_size = _clients.size();
                 _clsz_rw.unlock();
                     
-                //call the on connect func
+                //call the onConnect func
                  _func(*_clients.back() );
 
                  //put update thread
                  //also takes care of killing and removing client
-                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients)
+                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, bool& stop_thr)
                  {
-                 	while(!sock->getDestroy() )
+                 	while(!sock->getDestroy() && !stop_thr)
                  	{
                  		try
                  		{
@@ -374,14 +373,14 @@ namespace NylonSock
                  	}
 
                  	clsz.lock();
-                 	clients.erase(std::remove_if(clients.begin(), clients.end(), [=](std::unique_ptr<UsrSock>& usrsock)
+                 	clients.erase(std::remove_if(clients.begin(), clients.end(), [&sock](std::unique_ptr<UsrSock>& usrsock)
                  		{
                  			return (usrsock.get() == sock);
                  		}), clients.end() );
                  	clsz.unlock();
                  };
 
-                 std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients)};
+                 std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients), std::ref(_stop_thread)};
                  update_thread.detach();
             }
 
@@ -398,12 +397,12 @@ namespace NylonSock
                 _thr_rw.lock();
                 if(_stop_thread)
                 {
+               	    _thr_rw.unlock();
                     break;
                 }
                 _thr_rw.unlock();
                 update();
             }
-            _thr_rw.unlock();
         }
     public:
         Server(std::string port)
