@@ -23,6 +23,7 @@
 #include <mutex>
 #include <cstdint>
 #include <algorithm>
+#include <atomic>
 
 /*
  How data is sent:
@@ -291,13 +292,11 @@ namespace NylonSock
     {
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
-        bool _stop_thread = false;
+        std::atomic<bool> _stop_thread{false};
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
-        size_t _clients_size = 0;
         ServClientFunc _func;
-        std::mutex _thr_rw;
         std::mutex _clsz_rw;
         std::mutex _fin;
 
@@ -350,7 +349,6 @@ namespace NylonSock
                 //it is an actual socket
                 _clients.push_back(std::make_unique<UsrSock>(new_sock) );
 
-                _clients_size = _clients.size();
                 _clsz_rw.unlock();
                     
                 //call the onConnect func
@@ -358,9 +356,9 @@ namespace NylonSock
 
                  //put update thread
                  //also takes care of killing and removing client
-                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, bool& stop_thr)
+                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, std::atomic<bool>& stop_thr)
                  {
-                 	while(!sock->getDestroy() && !stop_thr)
+                 	while(!sock->getDestroy() && !stop_thr.load() )
                  	{
                  		try
                  		{
@@ -383,10 +381,6 @@ namespace NylonSock
                  std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients), std::ref(_stop_thread)};
                  update_thread.detach();
             }
-
-            _clsz_rw.lock();
-            _clients_size = _clients.size();
-            _clsz_rw.unlock();
 	    };
 
         void thr_update()
@@ -394,13 +388,10 @@ namespace NylonSock
             std::lock_guard<std::mutex> end{_fin};
             while(true)
             {
-                _thr_rw.lock();
-                if(_stop_thread)
+                if(_stop_thread.load() )
                 {
-               	    _thr_rw.unlock();
                     break;
                 }
-                _thr_rw.unlock();
                 update();
             }
         }
@@ -444,38 +435,32 @@ namespace NylonSock
 
         unsigned long count() 
         {
-            _clsz_rw.lock();
-            auto temp = _clients_size;
-            _clsz_rw.unlock();
-
-            return temp;
+            std::lock_guard<std::mutex> lock {_clsz_rw};
+            return _clients.size();
         };
 
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread)
+            if(_stop_thread.load() )
             {
                 return;
             }
 
-            _thr_rw.lock();
             _stop_thread = false;
-            _thr_rw.unlock();
+
             auto accepter = std::thread(&Server::thr_update, this);
             accepter.detach();
         };
 
         void stop()
         {
-            _thr_rw.lock();
             _stop_thread = true;
-            _thr_rw.unlock();
         };
 
         bool status() const
         {
-            return _stop_thread;
+            return _stop_thread.load();
         };
 
         UsrSock& getUsrSock(unsigned int pos)
@@ -500,8 +485,7 @@ namespace NylonSock
         //client socket has similar interface
         std::unique_ptr<T> _inter;
 
-        std::mutex _thr_rw;
-        bool _stop_thread = false;
+        std::atomic<bool> _stop_thread{false};
         std::mutex _fin;
         
         void createListener(std::string ip, std::string port)
@@ -521,13 +505,10 @@ namespace NylonSock
             {
                 while(true)
                 {
-                    _thr_rw.lock();
-                    if(_stop_thread)
+                    if(_stop_thread.load() )
                     {
-                        _thr_rw.unlock();
                         break;
                     }
-                    _thr_rw.unlock();
 
                     //break out if the flag is rip
                     if(_inter->getDestroy() ) break;
@@ -582,33 +563,29 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread)
+            if(_stop_thread.load() )
             {
                 return;
             }
 
-            _thr_rw.lock();
             _stop_thread = false;
-            _thr_rw.unlock();
+
             auto accepter = std::thread(&Client<T>::update, this);
             accepter.detach();
         };
 
         void stop()
         {
-            _thr_rw.lock();
             _stop_thread = true;
-            _thr_rw.unlock();
         };
 
         bool status() const
         {
-            return _stop_thread;
+            return _stop_thread.load();
         };
 
         T& get()
         {
-            std::lock_guard<std::mutex> lock(_thr_rw);
             return *_inter;
         }
 
