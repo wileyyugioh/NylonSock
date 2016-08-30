@@ -171,10 +171,7 @@ namespace NylonSock
             char success = recv(sock, &datalen, data_size, NULL);
             
             //break when there is no info
-            if(success <= 0)
-            {
-                return;
-            }
+            if(success <= 0) return;
             
             //receive event length
             recv(sock, &eventlen, data_size, NULL);
@@ -338,10 +335,7 @@ namespace NylonSock
             	//sets[0] is an FD_Set of the sockets ready to be accepted
             	auto sets = select(*_fdset, TimeVal{ 1000 });
                     
-                if (sets[0].size() == 0)
-                {
-                    break;
-                }
+                if (sets[0].size() == 0) break;
 
                 auto new_sock = accept(*_server);
                     
@@ -505,7 +499,7 @@ namespace NylonSock
             {
                 while(true)
                 {
-                    if(_stop_thread.load() || _inter->getDestroy) break;
+                    if(_stop_thread.load() || _inter->getDestroy() ) break;
                     
                     _inter->update();
                 }
