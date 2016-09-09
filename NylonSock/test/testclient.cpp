@@ -40,6 +40,7 @@ int main(int argc, const char * argv[])
 
     NylonSock::Client<InClient> client{MYIP, 3490};
     client.start();
+
     std::cout << "What is your username?" << std::endl;
     std::getline(std::cin, client.get().usrname);
 
@@ -50,7 +51,7 @@ int main(int argc, const char * argv[])
     });
 
     std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
-    while(true)
+    while(client.status() )
     {
         std::getline(std::cin, client.get().msg);
 

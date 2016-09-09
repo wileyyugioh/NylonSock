@@ -25,6 +25,10 @@
 #include <algorithm>
 #include <atomic>
 
+//debugging
+#include <iostream>
+#include <iomanip>
+
 /*
  How data is sent:
  
@@ -86,31 +90,25 @@ namespace NylonSock
     void emitSend(std::string event_name, const SockData& data, Socket& socket)
     {
         //sends data to server/client
-        
-        //takes in an int, padding length, and a fill character
-        //returns a padded string
-        auto pad_str = [](int str, int padding, char fill)
-        {
-            std::stringstream ss;
-            ss << std::setw(padding) << std::setfill(fill) << str;
-            return ss.str();
-        };
 
         //assumes socket is already binded
         std::string raw_data = data.getRaw();
        
         //size of data
-        sock_size_type sizeofstr = raw_data.size();
+        sock_size_type sizeofstr = htons(raw_data.size() );
         
         //size of event name
-        sock_size_type sizeofevent = event_name.size();
-
-        //get padding len
-        numberlength<maximum_sock_val> nllen;
-        auto padding_len = nllen.value; 
+        sock_size_type sizeofevent = htons(event_name.size() );
         
         //formatting data: size of data + size of eventname + eventname + data
-        std::string format_str = pad_str(sizeofstr, padding_len, '0') + pad_str(sizeofevent, padding_len, '0') + event_name + raw_data;
+        auto str_cast = (char*)(&sizeofstr);
+        auto event_cast = (char*)(&sizeofevent);
+
+        std::string format_str = std::string{str_cast, str_cast + sizeof(sizeofstr)} + 
+        	std::string{event_cast, event_cast + 
+        	sizeof(sizeofevent)} + 
+        	event_name + 
+        	raw_data;
 
         //sending total data
         send(socket, format_str.c_str(), format_str.size(), NULL);
@@ -149,20 +147,33 @@ namespace NylonSock
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
-            auto stosize_t = [](std::string str)
-            {
-                size_t data;
-                if(sscanf(str.c_str(), "%zu", &data) != 1)
-                {
-                    throw CLOSE{"Bad Header (Letters instead of digits)"};
-                }
+        	       	auto string_to_hex = [](const std::string& input)
+{
+    static const char* const lut = "0123456789ABCDEF";
+    size_t len = input.length();
 
-                return data;
+    std::string output;
+    output.reserve(2 * len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        const unsigned char c = input[i];
+        output.push_back(lut[c >> 4]);
+        output.push_back(lut[c & 15]);
+    }
+    return output;
+};
+
+            auto castback = [](std::string str)
+            {
+                sock_size_type data;
+
+                memcpy(&data, str.c_str(), str.size() );
+
+                return ntohs(data);
             };
 
             //gets the size of data in package that tells data size
-            numberlength<maximum_sock_val> nllen;
-            size_t data_size = sizeof(char) * nllen.value;
+            size_t data_size = sizeof(sock_size_type);
 
             char datalen[data_size], eventlen[data_size];
             
@@ -170,7 +181,7 @@ namespace NylonSock
             //also assumes socket is non blocking
             char success = recv(sock, &datalen, data_size, NULL);
             
-            //break when there is no info
+            //break when there is no info or an error
             if(success <= 0) return;
             
             //receive event length
@@ -182,7 +193,7 @@ namespace NylonSock
             std::string eventstr, datastr;
             
             //receive and convert event
-            size_t eventlensize = stosize_t(eventlen);
+            sock_size_type eventlensize = castback({eventlen, eventlen + sizeof(eventlen) / sizeof(eventlen[0])});
 
             //only recv if eventname greater than 0
             if(eventlensize > 0)
@@ -193,7 +204,7 @@ namespace NylonSock
             }
 
             //receive and convert data
-            size_t datalensize = stosize_t(datalen);
+            sock_size_type datalensize = castback({datalen, datalen + sizeof(datalen) / sizeof(datalen[0])});
 
             if(datalensize > 0)
             {
@@ -268,14 +279,6 @@ namespace NylonSock
 
                 throw e;
             }
-            catch(std::exception& e)
-            {
-                _client = nullptr;
-                _functions.clear();
-                _self_fd = nullptr;
-                
-                _destroy_flag = true;
-            }
         };
 
     };
@@ -289,7 +292,7 @@ namespace NylonSock
     {
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
-        std::atomic<bool> _stop_thread{false};
+        std::atomic<bool> _stop_thread{true};
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
@@ -421,6 +424,7 @@ namespace NylonSock
         
         void emit(std::string event_name, SockData data)
         {
+            std::lock_guard<std::mutex> lock {_clsz_rw};
             for(auto& it : _clients)
             {
                 it->emit(event_name, data);
@@ -436,7 +440,7 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread.load() )
+            if(!_stop_thread.load() )
             {
                 return;
             }
@@ -454,7 +458,7 @@ namespace NylonSock
 
         bool status() const
         {
-            return _stop_thread.load();
+            return !_stop_thread.load();
         };
 
         UsrSock& getUsrSock(unsigned int pos)
@@ -479,7 +483,7 @@ namespace NylonSock
         //client socket has similar interface
         std::unique_ptr<T> _inter;
 
-        std::atomic<bool> _stop_thread{false};
+        std::atomic<bool> _stop_thread{true};
         std::mutex _fin;
         
         void createListener(std::string ip, std::string port)
@@ -504,7 +508,7 @@ namespace NylonSock
                     _inter->update();
                 }
             }
-            catch(NylonSock::SOCK_CLOSED& e)
+            catch(std::exception& e)
             {
                 stop();
             }
@@ -535,12 +539,12 @@ namespace NylonSock
 
         void on(std::string event_name, SockFunc<T> func) override
         {
-            _inter->on(event_name, func);
+        	if(!_stop_thread.load() ) _inter->on(event_name, func);
         };
 
         void emit(std::string event_name, const SockData& data) override
         {
-            _inter->emit(event_name, data);
+            if(!_stop_thread.load() ) _inter->emit(event_name, data);
         };
 
         bool getDestroy() const
@@ -551,7 +555,7 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread.load() )
+            if(!_stop_thread.load() )
             {
                 return;
             }
@@ -569,7 +573,7 @@ namespace NylonSock
 
         bool status() const
         {
-            return _stop_thread.load();
+            return !_stop_thread.load();
         };
 
         T& get()
