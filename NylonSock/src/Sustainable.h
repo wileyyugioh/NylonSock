@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 
 /*
  How data is sent:
