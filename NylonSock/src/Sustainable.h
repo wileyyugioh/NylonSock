@@ -12,6 +12,9 @@
 #include "Socket.h"
 
 #include <string>
+#include <iomanip>
+#include <sstream>
+#include <cstdio>
 #include <stdexcept>
 #include <vector>
 #include <memory>
@@ -19,15 +22,17 @@
 #include <thread>
 #include <mutex>
 #include <cstdint>
-
+#include <algorithm>
+#include <atomic>
+#include <cstring>
 
 /*
  How data is sent:
  
  bytes are assumed to be 8 bits
  
- Beginning is uint32_t of size in bytes
- Next is uint32_t of event name size in bytes
+ Beginning is uint16_t of size in bytes
+ Next is uint16_t of event name size in bytes
  Next is name
  Rest is data.
  
@@ -36,9 +41,8 @@
 
 namespace NylonSock
 {
-    typedef uint32_t sock_size_type;
-    constexpr size_t sizeint32 = sizeof(sock_size_type);
-    constexpr sock_size_type maximum32bit = std::numeric_limits<sock_size_type>::max();
+    typedef uint16_t sock_size_type;
+    constexpr sock_size_type maximum_sock_val = std::numeric_limits<sock_size_type>::max();
 
     class FD_Set;
     class Socket;
@@ -49,7 +53,20 @@ namespace NylonSock
     class ClientSocket;
     
     template<class Self>
-    using SockFunc = void (*)(SockData, Self&);
+    using SockFunc = std::function< void (SockData, Self&)>;
+    
+    //used for getting num of digits in a number
+    template <unsigned long long N, size_t base=10>
+    struct numberlength
+    {
+        enum { value = 1 + numberlength<N/base, base>::value };            
+    };
+
+    template <size_t base>
+    struct numberlength<0, base>
+    {
+        enum { value = 0 };
+    };
     
     class TOOBIG : public std::runtime_error
     {
@@ -70,22 +87,28 @@ namespace NylonSock
     void emitSend(std::string event_name, const SockData& data, Socket& socket)
     {
         //sends data to server/client
-        
+
         //assumes socket is already binded
         std::string raw_data = data.getRaw();
+       
+        //size of data
+        sock_size_type sizeofstr = htons(raw_data.size() );
         
-        sock_size_type sizeofstr = htonl(raw_data.size() );
-        sock_size_type sizeofevent = htonl(event_name.size() );
+        //size of event name
+        sock_size_type sizeofevent = htons(event_name.size() );
         
-        //sending size of data
-        send(socket, &sizeofstr, sizeint32, NULL);
-        //sending size of event name
-        send(socket, &sizeofevent, sizeint32, NULL);
-        //sending event name
-        send(socket, event_name.c_str(), event_name.size(), NULL);
-        
+        //formatting data: size of data + size of eventname + eventname + data
+        auto str_cast = (char*)(&sizeofstr);
+        auto event_cast = (char*)(&sizeofevent);
+
+        std::string format_str = std::string{str_cast, str_cast + sizeof(sizeofstr)} + 
+        	std::string{event_cast, event_cast + 
+        	sizeof(sizeofevent)} + 
+        	event_name + 
+        	raw_data;
+
         //sending total data
-        send(socket, raw_data.c_str(), raw_data.size(), NULL);
+        send(socket, format_str.c_str(), format_str.size(), NULL);
     }
     
     //have to use CRTP
@@ -104,6 +127,13 @@ namespace NylonSock
     template<class T>
     class ClientSocket : public ClientInterface<T>
     {
+    private:
+    	class CLOSE : public std::runtime_error
+    	{
+    	public:
+    		CLOSE(std::string err) : std::runtime_error(err) {};
+    	};
+
     protected:
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
@@ -114,56 +144,84 @@ namespace NylonSock
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
-            sock_size_type datalen, messagelen;
-            
-            //recieves data from client
-            //also assumes socket is non blocking
-            char success = recv(sock, &datalen, sizeint32, NULL);
-            
-            //break when there is no info
-            if(success <= 0)
+        	       	auto string_to_hex = [](const std::string& input)
+{
+    static const char* const lut = "0123456789ABCDEF";
+    size_t len = input.length();
+
+    std::string output;
+    output.reserve(2 * len);
+    for (size_t i = 0; i < len; ++i)
+    {
+        const unsigned char c = input[i];
+        output.push_back(lut[c >> 4]);
+        output.push_back(lut[c & 15]);
+    }
+    return output;
+};
+
+            auto castback = [](std::string str)
             {
-                return;
-            }
+                sock_size_type data;
+
+                std::memcpy(&data, str.c_str(), str.size() );
+
+                return ntohs(data);
+            };
+
+            //gets the size of data in package that tells data size
+            size_t data_size = sizeof(sock_size_type);
+
+            char datalen[data_size], eventlen[data_size];
             
-            //receive message length
-            recv(sock, &messagelen, sizeint32, NULL);
+            //receives data from client
+            //also assumes socket is non blocking
+            char success = recv(sock, &datalen, data_size, NULL);
             
-            //convert to host language
-            datalen = ntohl(datalen);
-            messagelen = ntohl(messagelen);
+            //break when there is no info or an error
+            if(success <= 0) return;
+            
+            //receive event length
+            recv(sock, &eventlen, data_size, NULL);
             
             //allocate buffers!
             //char is not guaranteed 8 bit
-            std::vector<uint8_t> message, data;
+            std::vector<uint8_t> event, data;
+            std::string eventstr, datastr;
             
-            message.resize(messagelen, 0);
-            data.resize(datalen, 0);
-            
-            //receive message data
-            recv(sock, &(message[0]), messagelen, NULL);
-            
-            //receive data data
-            recv(sock, &(data[0]), datalen, NULL);
-            
-            std::string messagestr, datastr;
-            
-            //copy data into string
-            messagestr.assign(message.begin(), message.end() );
-            datastr.assign(data.begin(), data.end() );
+            //receive and convert event
+            sock_size_type eventlensize = castback({eventlen, eventlen + sizeof(eventlen) / sizeof(eventlen[0])});
+
+            //only recv if eventname greater than 0
+            if(eventlensize > 0)
+            {
+                event.resize(eventlensize, 0);
+                recv(sock, &(event[0]), eventlensize, NULL);
+                eventstr.assign(event.begin(), event.end() );
+            }
+
+            //receive and convert data
+            sock_size_type datalensize = castback({datalen, datalen + sizeof(datalen) / sizeof(datalen[0])});
+
+            if(datalensize > 0)
+            {
+                data.resize(datalensize, 0);
+                recv(sock, &(data[0]), datalensize, NULL);
+                datastr.assign(data.begin(), data.end() );
+            }
             
             //if the event is in the functions
-            if(_functions.count(messagestr) != 0)
+            if(_functions.count(eventstr) != 0)
             {
                 //call it
-                _functions[messagestr](SockData{datastr}, *top_class);
+                _functions[eventstr](SockData{datastr}, *top_class);
             }
             
             //else, the data gets thrown away
         }
 
     public:
-        ClientSocket(Socket sock, T* round) : top_class(round)
+        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) )
         {
             _client = std::make_unique<Socket>(sock);
         };
@@ -179,6 +237,11 @@ namespace NylonSock
         {
             //sends data to client
             emitSend(event_name, data, *_client);
+        };
+
+        bool getDestroy() const override
+        {
+            return _destroy_flag;
         };
 
         void update() override
@@ -203,27 +266,18 @@ namespace NylonSock
                     recvData(*_client, _functions);
                 }
             }
-            catch(PEER_RESET& e)
-            {
-                _client = nullptr;
-                _functions.clear();
-                _self_fd = nullptr;
-                
-                _destroy_flag = true;
-            }
             catch (SOCK_CLOSED& e)
             {
                 _client = nullptr;
                 _functions.clear();
                 _self_fd = nullptr;
                 
+                _destroy_flag = true;
+
                 throw e;
             }
         };
-        bool getDestroy() const override
-        {
-            return _destroy_flag;
-        };
+
     };
     
     //dummy
@@ -234,21 +288,21 @@ namespace NylonSock
     class Server<UsrSock, typename std::enable_if<std::is_base_of<ClientSocket<UsrSock>, UsrSock>::value>::type>
     {
     private:
-        typedef void (*ServClientFunc)(UsrSock&);
-        bool _stop_thread;
+        using ServClientFunc = std::function<void (UsrSock&)>;
+        std::atomic<bool> _stop_thread{true};
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
-        size_t _clients_size;
         ServClientFunc _func;
-        std::mutex _thr_rw;
         std::mutex _clsz_rw;
         std::mutex _fin;
 
         void createServer(std::string port)
         {
             addrinfo hints = {0};
-            hints.ai_family = AF_UNSPEC;
+            //force server to be ipv6
+            //ipv4 and ipv6 addresses can connect
+            hints.ai_family = AF_INET6;
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_flags = AI_PASSIVE;
             
@@ -274,50 +328,53 @@ namespace NylonSock
         };
 
         void update()
-	    {
+		{
             while(true)
             {
                 //this is all accepting new clients
-            //sets[0] is an FD_Set of the sockets ready to be accept
-            auto sets = select(*_fdset, TimeVal{ 1000 });
+            	//sets[0] is an FD_Set of the sockets ready to be accepted
+            	auto sets = select(*_fdset, TimeVal{ 1000 });
                     
-            if (sets[0].size() == 0)
-            {
-                break;
-            }
+                if (sets[0].size() == 0) break;
 
-                    auto new_sock = accept(*_server);
+                auto new_sock = accept(*_server);
                     
-                    _clsz_rw.lock();
-                    //it is an actual socket
-                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+                _clsz_rw.lock();
+                //it is an actual socket
+                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
 
-                    _clients_size = _clients.size();
-                    _clsz_rw.unlock();
+                _clsz_rw.unlock();
                     
-                    //call the on connect func
-                    _func(*_clients.back() );
+                //call the onConnect func
+                 _func(*_clients.back() );
+
+                 //put update thread
+                 //also takes care of killing and removing client
+                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, std::atomic<bool>& stop_thr)
+                 {
+                 	while(!sock->getDestroy() && !stop_thr.load() )
+                 	{
+                 		try
+                 		{
+                 			sock->update();
+                 		}
+                 		catch(SOCK_CLOSED& e)
+                 		{
+                 			//for now do nothing
+                 		}
+                 	}
+
+                 	clsz.lock();
+                 	clients.erase(std::remove_if(clients.begin(), clients.end(), [&sock](std::unique_ptr<UsrSock>& usrsock)
+                 		{
+                 			return (usrsock.get() == sock);
+                 		}), clients.end() );
+                 	clsz.unlock();
+                 };
+
+                 std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients), std::ref(_stop_thread)};
+                 update_thread.detach();
             }
-	                
-                //updating clients
-            auto it = std::begin(_clients);
-            while(it != _clients.end() )
-            {
-                if((*it)->getDestroy() == true)
-                {
-                    _clsz_rw.lock();
-                    it = _clients.erase(it);
-                    _clsz_rw.unlock();
-                }
-                else
-                {
-                    (*it)->update();
-                    it++;
-                }
-            }
-            _clsz_rw.lock();
-            _clients_size = _clients.size();
-            _clsz_rw.unlock();
 	    };
 
         void thr_update()
@@ -325,18 +382,15 @@ namespace NylonSock
             std::lock_guard<std::mutex> end{_fin};
             while(true)
             {
-                _thr_rw.lock();
-                if(_stop_thread)
+                if(_stop_thread.load() )
                 {
                     break;
                 }
-                _thr_rw.unlock();
                 update();
             }
-            _thr_rw.unlock();
         }
     public:
-        Server(std::string port) : _stop_thread(false), _clients_size(0)
+        Server(std::string port)
         {
             createServer(port);
             addToSet();
@@ -356,49 +410,52 @@ namespace NylonSock
 
         Server& operator=(const Server& that) = delete;
 
-        Server(const Server&& that) = delete;
+        Server(Server&& that) = delete;
 
-        Server& operator=(const Server&& that) = delete;
+        Server& operator=(Server&& that) = delete;
        
         void onConnect(ServClientFunc func)
         {
             _func = func;
         };
         
+        void emit(std::string event_name, SockData data)
+        {
+            std::lock_guard<std::mutex> lock {_clsz_rw};
+            for(auto& it : _clients)
+            {
+                it->emit(event_name, data);
+            }
+        };
+
         unsigned long count() 
         {
-            _clsz_rw.lock();
-            auto temp = _clients_size;
-            _clsz_rw.unlock();
-
-            return temp;
+            std::lock_guard<std::mutex> lock {_clsz_rw};
+            return _clients.size();
         };
 
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread)
+            if(!_stop_thread.load() )
             {
                 return;
             }
 
-            _thr_rw.lock();
             _stop_thread = false;
-            _thr_rw.unlock();
+
             auto accepter = std::thread(&Server::thr_update, this);
             accepter.detach();
         };
 
         void stop()
         {
-            _thr_rw.lock();
             _stop_thread = true;
-            _thr_rw.unlock();
         };
 
         bool status() const
         {
-            return _stop_thread;
+            return !_stop_thread.load();
         };
 
         UsrSock& getUsrSock(unsigned int pos)
@@ -409,19 +466,21 @@ namespace NylonSock
 
     };
     
+    template <class T, class Dummy = void>
+    class Client;
+
     //I really don't want to do any more work
     template <class T>
-    class Client : public ClientInterface<T>
+    class Client<T, typename std::enable_if<std::is_base_of<ClientSocket<T>, T>::value>::type> : public ClientInterface<T>
     {
     private:
         //see top of cpp file to see how data is sent
         std::unique_ptr<Socket> _server;
         
         //client socket has similar interface
-        std::unique_ptr<ClientSocket<T> > _inter;
+        std::unique_ptr<T> _inter;
 
-        std::mutex _thr_rw;
-        bool _stop_thread = false;
+        std::atomic<bool> _stop_thread{true};
         std::mutex _fin;
         
         void createListener(std::string ip, std::string port)
@@ -434,11 +493,29 @@ namespace NylonSock
             connect(*_server);
         };
 
+        void update() override
+        {
+            std::lock_guard<std::mutex> end{_fin};
+            try
+            {
+                while(true)
+                {
+                    if(_stop_thread.load() || _inter->getDestroy() ) break;
+                    
+                    _inter->update();
+                }
+            }
+            catch(std::exception& e)
+            {
+                stop();
+            }
+        };
+
     public:
         Client(std::string ip, std::string port)
         {
              createListener(ip, port);
-            _inter = std::make_unique<ClientSocket<T> >(*_server, static_cast<T*>(this) );
+            _inter = std::make_unique<T>(*_server);
         };
 
         Client(std::string ip, int port) : Client(ip, std::to_string(port) ) {};
@@ -453,41 +530,18 @@ namespace NylonSock
 
         Client& operator=(const Client& that) = delete;
 
-        Client(const Client&& that) = delete;
+        Client(Client&& that) = delete;
 
-        Client& operator=(const Client&& that) = delete;
+        Client& operator=(Client&& that) = delete;
 
         void on(std::string event_name, SockFunc<T> func) override
         {
-            _inter->on(event_name, func);
+        	if(!_stop_thread.load() ) _inter->on(event_name, func);
         };
 
         void emit(std::string event_name, const SockData& data) override
         {
-            _inter->emit(event_name, data);
-        };
-
-        void update() override
-        {
-            std::lock_guard<std::mutex> end{_fin};
-            try
-            {
-                while(true)
-                {
-                    _thr_rw.lock();
-                    if(_stop_thread)
-                    {
-                        _thr_rw.unlock();
-                        break;
-                    }
-                    _thr_rw.unlock();
-                    _inter->update();
-                }
-            }
-            catch(NylonSock::SOCK_CLOSED& e)
-            {
-                stop();
-            }
+            if(!_stop_thread.load() ) _inter->emit(event_name, data);
         };
 
         bool getDestroy() const override
@@ -498,29 +552,31 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(_stop_thread)
+            if(!_stop_thread.load() )
             {
                 return;
             }
 
-            _thr_rw.lock();
             _stop_thread = false;
-            _thr_rw.unlock();
+
             auto accepter = std::thread(&Client<T>::update, this);
             accepter.detach();
         };
 
         void stop()
         {
-            _thr_rw.lock();
             _stop_thread = true;
-            _thr_rw.unlock();
         };
 
         bool status() const
         {
-            return _stop_thread;
+            return !_stop_thread.load();
         };
+
+        T& get()
+        {
+            return *_inter;
+        }
 
     };
 }

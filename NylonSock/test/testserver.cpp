@@ -15,38 +15,42 @@
 class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 {
 public:
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock, this)
+    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock)
     {
     }
 
-    std::string rand_text;
+    std::string usrname;
 };
 
 int main(int argc, const char * argv[])
 {
 	using namespace NylonSock;
-	NSInit();
 
 	std::cout << gethostname() << std::endl;
     
 	Server<TestClientSock> serv{ 3490 };
-	serv.onConnect([](TestClientSock& sock)
+
+	serv.onConnect([&](TestClientSock& sock)
 	{
-		sock.emit("Event", {"This is being sent to all Event text!"});
-        sock.on("okay", [](SockData data, TestClientSock& ps)
-            {
-                std::cout << data.getRaw() << std::endl;
-            });
+        sock.on("usrname", [](SockData data, TestClientSock& sock)
+        {
+            sock.usrname = data.getRaw();
+        });
+
+        sock.on("msgGet", [&](SockData data, TestClientSock& sock)
+        {
+            std::cout << sock.usrname + ": " + data.getRaw() << std::endl;
+            serv.emit("msgSend", {sock.usrname + ": " + data.getRaw()});
+        });
 	});
 	
     serv.start();
     while(serv.count() < 5)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100) );
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
+        std::cout << "Connected clients: " << serv.count() << std::endl;
     }
 
     serv.stop();
-
-    NSRelease();
 }
 

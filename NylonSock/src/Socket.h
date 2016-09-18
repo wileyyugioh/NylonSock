@@ -43,16 +43,28 @@ enum PortBlockers
 #include <vector>
 #include <cmath>
 #include <set>
+#include <mutex>
 
 //Forward Declaration!
 struct timeval;
-
 
 //THE MEATY STUFF
 namespace NylonSock
 {
 	void NSInit();
 	void NSRelease();
+
+    class NSHelper
+    {
+    private:
+        static int _cw;
+
+    public:
+        NSHelper();
+        NSHelper(const NSHelper& that);
+        NSHelper(NSHelper&& that) = delete;
+        ~NSHelper();
+    };
 
     class Error : public std::runtime_error
     {
@@ -80,9 +92,10 @@ namespace NylonSock
         class SocketWrapper;
         class AddrWrapper;
 
-        
         std::shared_ptr<AddrWrapper> _info;
         std::shared_ptr<SocketWrapper> _sw;
+
+        NSHelper _the_help{};
     public:
         Socket(const char* node, const char* service, const addrinfo* hints);
         Socket(std::string node, std::string service, const addrinfo* hints);

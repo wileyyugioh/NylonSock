@@ -19,6 +19,9 @@
 #include <sys/errno.h>
 #include <stdlib.h>
 
+//debugging
+#include <iostream>
+
 //make it easier for crossplatform
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
@@ -32,9 +35,13 @@ constexpr int SHUT_RDWR = SD_BOTH;
 #endif
 
 #include <cstring>
+#include <mutex>
 
 namespace NylonSock
 {
+
+    int NSHelper::_cw = 0;
+
     void NSInit()
     {
 #ifdef PLAT_WIN
@@ -57,10 +64,81 @@ namespace NylonSock
         WSACleanup();
 #endif
     }
-    
-    Error::Error(std::string what) : std::runtime_error(what + " " + strerror(errno) )
+
+    NSHelper::NSHelper()
+    {
+        //is this thread safe? Who the hell knows?
+        if(_cw++ == 0)
+        {
+            NSInit();
+        }
+    }
+
+    NSHelper::NSHelper(const NSHelper& that)
+    {
+        _cw++;
+    }
+
+    NSHelper::~NSHelper()
+    {
+        if(--_cw == 0)
+        {
+            NSRelease();
+        }
+    }
+#ifdef PLAT_WIN
+	class WinStringWrap
+	{
+	private:
+		LPSTR errString;
+	public:
+		WinStringWrap() = default;
+
+		~WinStringWrap()
+		{
+			LocalFree(errString);
+		};
+
+		LPSTR& get()
+		{
+			return errString;
+		};
+	};
+
+	std::string translateError()
+	{
+		int errCode = WSAGetLastError();
+		WinStringWrap wrap;
+
+		int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM, // use windows internal message table
+			0,       // 0 since source is internal message table
+			errCode, // this is the error code returned by WSAGetLastError()
+					 // Could just as well have been an error code from generic
+					 // Windows errors from GetLastError()
+			0,       // auto-determine language to use
+			(LPSTR)&wrap.get(), // this is WHERE we want FormatMessage
+							   // to plunk the error string.  Note the
+							   // peculiar pass format:  Even though
+							   // errString is already a pointer, we
+							   // pass &errString (which is really type LPSTR* now)
+							   // and then CAST IT to (LPSTR).  This is a really weird
+							   // trip up.. but its how they do it on msdn:
+							   // http://msdn.microsoft.com/en-us/library/ms679351(VS.85).aspx
+			0,                 // min size for buffer
+			0);
+
+		return wrap.get();
+	}
+
+	Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() )
+	{
+	}
+#else
+    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
     {
     }
+#endif
     
     Error::Error(std::string what, bool null) : std::runtime_error(what)
     {
@@ -307,6 +385,9 @@ namespace NylonSock
         {
             //try clearing the port
             setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );
+            
+            //and rebind
+            success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
         }
         
         //clears addrinfo
@@ -315,13 +396,13 @@ namespace NylonSock
     
     void connect(const Socket& sock)
     {
-        //connects socket to host
-        char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
-        
-        if(success == SOCKET_ERROR)
-        {
-            throw Error("Failed to connect to socket");
-        }
+		//connects socket to host
+		char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
+
+		if (success == SOCKET_ERROR)
+		{
+			throw Error("Failed to connect to socket");
+		}
     }
     
     void listen(const Socket& sock, unsigned char backlog)
@@ -365,7 +446,7 @@ namespace NylonSock
             //needs to be cast to const char* for winsock2
             size += ::send(sock.port(), (const char*)buf, len, flags);
 #endif
-            
+
             if(size == SOCKET_ERROR)
             {
                 throw Error("Failed to send data to socket");

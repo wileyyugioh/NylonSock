@@ -17,7 +17,7 @@ namespace NylonSock
     
     SockData::SockData(std::string data) : raw_data(data)
     {
-        if(data.size() > maximum32bit)
+        if(data.size() > maximum_sock_val)
         {
             //throw error because data is too large
             throw TOOBIG(std::to_string(data.size()) );

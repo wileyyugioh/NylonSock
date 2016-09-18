@@ -12,19 +12,20 @@
 #include <chrono>
 #include <thread>
 
-class InClient : public NylonSock::Client<InClient>
+class InClient : public NylonSock::ClientSocket<InClient>
 {
 private:
 public:
-    InClient(std::string ip, int port) : Client(ip, port)
+    InClient(NylonSock::Socket sock) : ClientSocket(sock)
     {
     }
 
-    std::string rand;
+    std::string usrname, msg;
 };
 
 int main(int argc, const char * argv[])
 {
+	
     if(argc == 1)
     {
         std::cout << "First argument is the ip to connect to" << std::endl;
@@ -33,29 +34,29 @@ int main(int argc, const char * argv[])
     
     const char* MYIP = argv[1];
     
-    
-    
     using namespace NylonSock;
-    NSInit();
     
     std::cout << gethostname() << std::endl;
-    
-    InClient client{MYIP, 3490};
-    std::cout << "What text do you want to send?" << std::endl;
-    std::cin >> client.rand;
-    client.on("Event", [](SockData data, InClient& ps)
-              {
-                  ps.emit("okay", {ps.rand});
-              });
-    
+
+    NylonSock::Client<InClient> client{MYIP, 3490};
     client.start();
 
-    for(int i = 0; i < 50; i++)
+    std::cout << "What is your username?" << std::endl;
+    std::getline(std::cin, client.get().usrname);
+
+    client.emit("usrname", {client.get().usrname});
+    client.on("msgSend", [](SockData data, InClient& client)
     {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100) );
+        std::cout << data.getRaw() << std::endl;
+    });
+
+    std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
+    while(client.status() )
+    {
+        std::getline(std::cin, client.get().msg);
+
+        client.emit("msgGet", {client.get().msg});
     }
 
     client.stop();
-    
-    NSRelease();
 }
