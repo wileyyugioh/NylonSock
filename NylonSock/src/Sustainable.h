@@ -25,10 +25,6 @@
 #include <algorithm>
 #include <atomic>
 
-//debugging
-#include <iostream>
-#include <iomanip>
-
 /*
  How data is sent:
  
@@ -167,7 +163,7 @@ namespace NylonSock
             {
                 sock_size_type data;
 
-                memcpy(&data, str.c_str(), str.size() );
+                std::memcpy(&data, str.c_str(), str.size() );
 
                 return ntohs(data);
             };
@@ -547,7 +543,7 @@ namespace NylonSock
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
         };
 
-        bool getDestroy() const
+        bool getDestroy() const override
         {
             return _inter->getDestroy();
         };
