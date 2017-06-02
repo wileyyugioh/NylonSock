@@ -99,7 +99,6 @@ namespace NylonSock
     public:
         Socket(const char* node, const char* service, const addrinfo* hints);
         Socket(std::string node, std::string service, const addrinfo* hints);
-        [[deprecated]]
         Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
         Socket() = default;

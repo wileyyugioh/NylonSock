@@ -172,17 +172,17 @@ namespace NylonSock
             //gets the size of data in package that tells data size
             size_t data_size = sizeof(sock_size_type);
 
-            char datalen[data_size], eventlen[data_size];
+            std::vector<char> datalen(data_size), eventlen(data_size);
             
             //receives data from client
             //also assumes socket is non blocking
-            char success = recv(sock, &datalen, data_size, NULL);
+            char success = recv(sock, datalen.data(), data_size, NULL);
             
             //break when there is no info or an error
             if(success <= 0) return;
             
             //receive event length
-            recv(sock, &eventlen, data_size, NULL);
+            recv(sock, eventlen.data(), data_size, NULL);
             
             //allocate buffers!
             //char is not guaranteed 8 bit
@@ -190,7 +190,7 @@ namespace NylonSock
             std::string eventstr, datastr;
             
             //receive and convert event
-            sock_size_type eventlensize = castback({eventlen, eventlen + sizeof(eventlen) / sizeof(eventlen[0])});
+            sock_size_type eventlensize = castback({eventlen.begin(), eventlen.end()});
 
             //only recv if eventname greater than 0
             if(eventlensize > 0)
@@ -201,7 +201,7 @@ namespace NylonSock
             }
 
             //receive and convert data
-            sock_size_type datalensize = castback({datalen, datalen + sizeof(datalen) / sizeof(datalen[0])});
+            sock_size_type datalensize = castback({datalen.begin(), datalen.end()});
 
             if(datalensize > 0)
             {
