@@ -144,21 +144,21 @@ namespace NylonSock
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
-        	       	auto string_to_hex = [](const std::string& input)
-{
-    static const char* const lut = "0123456789ABCDEF";
-    size_t len = input.length();
+        	auto string_to_hex = [](const std::string& input)
+			{
+				static const char* const lut = "0123456789ABCDEF";
+				size_t len = input.length();
 
-    std::string output;
-    output.reserve(2 * len);
-    for (size_t i = 0; i < len; ++i)
-    {
-        const unsigned char c = input[i];
-        output.push_back(lut[c >> 4]);
-        output.push_back(lut[c & 15]);
-    }
-    return output;
-};
+				std::string output;
+				output.reserve(2 * len);
+				for (size_t i = 0; i < len; ++i)
+				{
+					const unsigned char c = input[i];
+					output.push_back(lut[c >> 4]);
+					output.push_back(lut[c & 15]);
+				}
+				return output;
+			};
 
             auto castback = [](std::string str)
             {
@@ -262,12 +262,11 @@ namespace NylonSock
                     {
                         return;
                     }
-                    
                     recvData(*_client, _functions);
                 }
             }
-            catch (SOCK_CLOSED& e)
-            {
+            catch (Error& e)
+            {				
                 _client = nullptr;
                 _functions.clear();
                 _self_fd = nullptr;
@@ -358,7 +357,7 @@ namespace NylonSock
                  		{
                  			sock->update();
                  		}
-                 		catch(SOCK_CLOSED& e)
+                 		catch(Error& e)
                  		{
                  			//for now do nothing
                  		}

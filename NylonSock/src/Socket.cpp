@@ -19,19 +19,20 @@
 #include <sys/errno.h>
 #include <stdlib.h>
 
-//debugging
-#include <iostream>
-
 //make it easier for crossplatform
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
 
 typedef int SOCKET;
+constexpr int NSCONNRESET = ECONNRESET;
+constexpr int NSWOULDBLOCK = EWOULDBLOCK;
 
 #elif defined(PLAT_WIN)
 constexpr int SHUT_RD = SD_RECEIVE;
 constexpr int SHUT_WR = SD_SEND;
 constexpr int SHUT_RDWR = SD_BOTH;
+constexpr int NSCONNRESET = WSAECONNRESET;
+constexpr int NSWOULDBLOCK = WSAEWOULDBLOCK;
 #endif
 
 #include <cstring>
@@ -458,24 +459,26 @@ namespace NylonSock
     
     size_t recv(const Socket& sock, void* buf, size_t len, int flags)
     {
+		int NSerrno = 0;
 #ifndef PLAT_WIN
         auto size = ::recv(sock.port(), buf, len, flags);
+		if(size == SOCKET_ERROR) NSerrno = errno;
 #else
         //casting to char* for winsock
         auto size = ::recv(sock.port(), (char*)buf, len, flags);
+		if(size == SOCKET_ERROR) NSerrno = WSAGetLastError();
 #endif
-        
-        if(size == SOCKET_ERROR && errno == ECONNRESET)
+        if(size == SOCKET_ERROR && NSerrno == NSCONNRESET)
         {
             throw PEER_RESET("Connection reset by peer");
         }
         
-        if(size == SOCKET_ERROR && errno != EWOULDBLOCK)
+        if(size == SOCKET_ERROR && NSerrno != NSWOULDBLOCK)
         {
             throw Error(std::string{"Failed to receive data from socket."});
         }
         
-        if(size == SOCKET_ERROR && errno == EWOULDBLOCK)
+        if(size == SOCKET_ERROR && NSerrno == NSWOULDBLOCK)
         {
             return 0;
         }
