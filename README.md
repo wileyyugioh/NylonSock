@@ -1,4 +1,4 @@
-#NylonSock
+# NylonSock
 
 [![Build Status](https://travis-ci.org/wileyyugioh/NylonSock.svg)](https://travis-ci.org/wileyyugioh/NylonSock)
 
@@ -56,11 +56,11 @@ Clients use the same format as servers.
 
 When a client receives the hallo event from a server, it will print out “ok.”
 
-#The Gritty
+# The Gritty
 
 The Client class and the ClientSocket class have the same functions.
 
-##*.on(EventName, Func);
+## *.on(EventName, Func);
 
 The on function takes in a string EventName for the event to act upon and a function Func, which is void and takes in a SockData for the first parameter and for the second a reference to the class that is calling it, be it a ClientSocket, a Client, or anything inherited from it.
 
@@ -85,19 +85,19 @@ client.on("printValue", [value](SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
 
 Please note that the function is void, and the first parameter is a SockData, and the second is the ClientSocket or inherited class that you passed to the server or class in the form of a template.
 
-##*.emit(EventName, Data);
+## *.emit(EventName, Data);
 
 The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
 
-##*.start()
+## *.start()
 
 Only for Client class and Server Class. Starts the server's updating functions for receiving any data.
 
-##*.stop()
+## *.stop()
 
 Only for Client class and Server Class. Stops the updating function. Automatically called upon destruction.
 
-##Client Class
+## Client Class
 
 Takes in as a template a ClientSocket class or a class inherited from ClientSocket.
 
@@ -107,7 +107,7 @@ Constructor:
 
 Takes in a string for the address to connect to for the first argument, and for the second takes in an int for the port to listen to.
 
-###Functions
+### Functions
 
 void on()
 
@@ -129,11 +129,11 @@ T& get():
 
 Returns a reference to the ClientSocket or inherited class you passed in.
 
-##Server Class
+## Server Class
 
 Takes in a ClientSocket as a template.
 
-###Functions
+### Functions
 
 onConnect(std::function<void (ClientSocket&)>):
 
@@ -149,7 +149,7 @@ UsrSock& getUsrSock(unsigned int pos):
 
 All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the pos, and this function will return a reference to it.
 
-##ClientSocket class
+## ClientSocket class
 
 Constructor:
 
@@ -159,7 +159,7 @@ The template takes in a ClientSocket class or any inherited class.
 
 Please use CRTP.
 
-###Functions
+### Functions
 
 void on()
 
@@ -167,7 +167,7 @@ void emit()
 
 bool getDestroy()
 
-#EVERYTHING BEYOND THIS IS LOWER LEVEL
+# EVERYTHING BEYOND THIS IS LOWER LEVEL
 
 The class this library is built upon is the Sockets class. It takes in the typical things getaddrinfo takes in: node, service, and an address of an addrinfo hint structure.
 
