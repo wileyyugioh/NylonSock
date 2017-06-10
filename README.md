@@ -7,7 +7,7 @@ A C++ interface for the C UNIX Sockets Library
 
 The function names should remain unchanged resulting in easy understanding and porting.
 
-#Documentation (Incomplete!)
+# Documentation (Incomplete!)
 
 Creating a server is easy, just do
 
