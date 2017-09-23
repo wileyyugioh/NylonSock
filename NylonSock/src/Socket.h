@@ -97,8 +97,8 @@ namespace NylonSock
 
         NSHelper _the_help{};
     public:
-        Socket(const char* node, const char* service, const addrinfo* hints);
-        Socket(std::string node, std::string service, const addrinfo* hints);
+        Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect = false);
+        Socket(std::string node, std::string service, const addrinfo* hints, bool autoconnect = false);
         Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
         Socket() = default;

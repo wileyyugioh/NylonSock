@@ -489,8 +489,7 @@ namespace NylonSock
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
             
-            _server = std::make_unique<Socket>(ip, port, &hints);
-            connect(*_server);
+            _server = std::make_unique<Socket>(ip, port, &hints, true);
         };
 
         void update() override
