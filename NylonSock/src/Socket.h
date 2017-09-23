@@ -32,8 +32,8 @@ typedef int SOCKET;
 
 enum PortBlockers
 {
-	O_NONBLOCK = FIONBIO,
-	O_ASYNC = FIONBIO
+    O_NONBLOCK = FIONBIO,
+    O_ASYNC = FIONBIO
 };
 #endif
 
@@ -51,8 +51,8 @@ struct timeval;
 //THE MEATY STUFF
 namespace NylonSock
 {
-	void NSInit();
-	void NSRelease();
+    void NSInit();
+    void NSRelease();
 
     class NSHelper
     {
@@ -73,11 +73,11 @@ namespace NylonSock
         Error(std::string what, bool null);
     };
 
-	class SOCK_CLOSED : public Error
-	{
-	public:
-		SOCK_CLOSED(std::string what);
-	};
+    class SOCK_CLOSED : public Error
+    {
+    public:
+        SOCK_CLOSED(std::string what);
+    };
     
     class PEER_RESET : public Error
     {
@@ -112,7 +112,7 @@ namespace NylonSock
         size_t size() const;
         bool operator ==(const Socket& that) const;
 
-		void freeaddrinfo();
+        void freeaddrinfo();
     };
     
     const Socket NULL_SOCKET{};
@@ -162,7 +162,7 @@ namespace NylonSock
         
         size_t size() const;
 #ifndef PLAT_WIN
-		//returns size of set
+        //returns size of set
         int getMax() const;
 #endif
         

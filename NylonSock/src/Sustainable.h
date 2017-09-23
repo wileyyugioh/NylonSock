@@ -102,10 +102,10 @@ namespace NylonSock
         auto event_cast = (char*)(&sizeofevent);
 
         std::string format_str = std::string{str_cast, str_cast + sizeof(sizeofstr)} + 
-        	std::string{event_cast, event_cast + 
-        	sizeof(sizeofevent)} + 
-        	event_name + 
-        	raw_data;
+            std::string{event_cast, event_cast + 
+            sizeof(sizeofevent)} + 
+            event_name + 
+            raw_data;
 
         //sending total data
         send(socket, format_str.c_str(), format_str.size(), NULL);
@@ -128,11 +128,11 @@ namespace NylonSock
     class ClientSocket : public ClientInterface<T>
     {
     private:
-    	class CLOSE : public std::runtime_error
-    	{
-    	public:
-    		CLOSE(std::string err) : std::runtime_error(err) {};
-    	};
+        class CLOSE : public std::runtime_error
+        {
+        public:
+            CLOSE(std::string err) : std::runtime_error(err) {};
+        };
 
     protected:
         std::unique_ptr<Socket> _client;
@@ -144,21 +144,21 @@ namespace NylonSock
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
-        	auto string_to_hex = [](const std::string& input)
-			{
-				static const char* const lut = "0123456789ABCDEF";
-				size_t len = input.length();
+            auto string_to_hex = [](const std::string& input)
+            {
+                static const char* const lut = "0123456789ABCDEF";
+                size_t len = input.length();
 
-				std::string output;
-				output.reserve(2 * len);
-				for (size_t i = 0; i < len; ++i)
-				{
-					const unsigned char c = input[i];
-					output.push_back(lut[c >> 4]);
-					output.push_back(lut[c & 15]);
-				}
-				return output;
-			};
+                std::string output;
+                output.reserve(2 * len);
+                for (size_t i = 0; i < len; ++i)
+                {
+                    const unsigned char c = input[i];
+                    output.push_back(lut[c >> 4]);
+                    output.push_back(lut[c & 15]);
+                }
+                return output;
+            };
 
             auto castback = [](std::string str)
             {
@@ -266,7 +266,7 @@ namespace NylonSock
                 }
             }
             catch (Error& e)
-            {				
+            {               
                 _client = nullptr;
                 _functions.clear();
                 _self_fd = nullptr;
@@ -303,7 +303,7 @@ namespace NylonSock
             //ipv4 and ipv6 addresses can connect
             hints.ai_family = AF_INET;
             hints.ai_socktype = SOCK_STREAM;
-			hints.ai_protocol = IPPROTO_TCP;
+            hints.ai_protocol = IPPROTO_TCP;
             hints.ai_flags = AI_PASSIVE;
             
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
@@ -328,12 +328,12 @@ namespace NylonSock
         };
 
         void update()
-		{
+        {
             while(true)
             {
                 //this is all accepting new clients
-            	//sets[0] is an FD_Set of the sockets ready to be accepted
-            	auto sets = select(*_fdset, TimeVal{ 1000 });
+                //sets[0] is an FD_Set of the sockets ready to be accepted
+                auto sets = select(*_fdset, TimeVal{ 1000 });
                     
                 if (sets[0].size() == 0) break;
 
@@ -352,30 +352,30 @@ namespace NylonSock
                  //also takes care of killing and removing client
                  auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, std::atomic<bool>& stop_thr)
                  {
-                 	while(!sock->getDestroy() && !stop_thr.load() )
-                 	{
-                 		try
-                 		{
-                 			sock->update();
-                 		}
-                 		catch(Error& e)
-                 		{
-                 			//for now do nothing
-                 		}
-                 	}
+                    while(!sock->getDestroy() && !stop_thr.load() )
+                    {
+                        try
+                        {
+                            sock->update();
+                        }
+                        catch(Error& e)
+                        {
+                            //for now do nothing
+                        }
+                    }
 
-                 	clsz.lock();
-                 	clients.erase(std::remove_if(clients.begin(), clients.end(), [&sock](std::unique_ptr<UsrSock>& usrsock)
-                 		{
-                 			return (usrsock.get() == sock);
-                 		}), clients.end() );
-                 	clsz.unlock();
+                    clsz.lock();
+                    clients.erase(std::remove_if(clients.begin(), clients.end(), [&sock](std::unique_ptr<UsrSock>& usrsock)
+                        {
+                            return (usrsock.get() == sock);
+                        }), clients.end() );
+                    clsz.unlock();
                  };
 
                  std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients), std::ref(_stop_thread)};
                  update_thread.detach();
             }
-	    };
+        };
 
         void thr_update()
         {
@@ -535,7 +535,7 @@ namespace NylonSock
 
         void on(std::string event_name, SockFunc<T> func) override
         {
-        	if(!_stop_thread.load() ) _inter->on(event_name, func);
+            if(!_stop_thread.load() ) _inter->on(event_name, func);
         };
 
         void emit(std::string event_name, const SockData& data) override

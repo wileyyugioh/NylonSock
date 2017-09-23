@@ -132,18 +132,12 @@ namespace NylonSock
         return wrap.get();
     }
 
-    Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() )
-    {
-    }
+    Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() ) {}
 #else
-    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
-    {
-    }
+    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) ) {}
 #endif
     
-    Error::Error(std::string what, bool null) : std::runtime_error(what)
-    {
-    }
+    Error::Error(std::string what, bool null) : std::runtime_error(what) {}
     
     SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
     
@@ -191,7 +185,7 @@ namespace NylonSock
 
             }
             
-            if(_sock == INVALID_SOCKET)
+            if(ptr == nullptr)
             {
                 throw Error("Failed to create socket");
             }
@@ -572,7 +566,7 @@ namespace NylonSock
     void fcntl(const Socket& sock, long args)
     {
 #ifndef PLAT_WIN
-        constexpr int SOCKET_TYPE = F_SETFL;
+        constexpr int COMMAND_TYPE = F_SETFL;
 #endif
         if(args != O_NONBLOCK && args != O_ASYNC)
         {
@@ -580,7 +574,7 @@ namespace NylonSock
         }
         
 #ifndef PLAT_WIN
-        char success = ::fcntl(sock.port(), SOCKET_TYPE, args);
+        char success = ::fcntl(sock.port(), COMMAND_TYPE, args);
 #else
         u_long is_true = 1;
         char success = ioctlsocket(sock.port(), args, &is_true);
