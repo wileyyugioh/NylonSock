@@ -140,7 +140,7 @@ namespace NylonSock
         std::unique_ptr<FD_Set> _self_fd;
         T* top_class;
         
-        bool _destroy_flag = false;
+        bool _destroy_flag;
 
         void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
         {
@@ -221,7 +221,7 @@ namespace NylonSock
         }
 
     public:
-        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) )
+        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) ), _destroy_flag(false)
         {
             _client = std::make_unique<Socket>(sock);
         };
@@ -351,28 +351,20 @@ namespace NylonSock
                  }
 
                  //update all clients
-                 std::lock_guard<std::mutex> lock{_clsz_rw};
                  auto it = _clients.begin();
                  while(it != _clients.end() )
                  {
                     auto sock = (*it).get();
-
-                    if(sock->getDestroy() )
+                    try
                     {
-                        _clients.erase(it++);
-                    }
-                    else
-                    {
-                        try
-                        {
-                            sock->update();
-                        }
-                        catch(Error& e)
-                        {
-                            //for now do nothing
-                        }
-
+                        sock->update();
                         ++it;
+                    }
+                    catch(Error& e)
+                    {
+                        //kill the client
+                         std::lock_guard<std::mutex> lock{_clsz_rw};
+                        it = _clients.erase(it);
                     }
                  }
             }
