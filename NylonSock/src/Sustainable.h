@@ -335,24 +335,33 @@ namespace NylonSock
                 //sets[0] is an FD_Set of the sockets ready to be accepted
                 auto sets = select(*_fdset, TimeVal{ 1000 });
                     
-                if (sets[0].size() == 0) break;
+                if (sets[0].size() != 0)
+                {
+                    auto new_sock = accept(*_server);
+                        
+                    _clsz_rw.lock();
+                    //it is an actual socket
+                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
 
-                auto new_sock = accept(*_server);
-                    
-                _clsz_rw.lock();
-                //it is an actual socket
-                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+                    _clsz_rw.unlock();
+                        
+                    //call the onConnect func
+                     _func(*_clients.back() );
 
-                _clsz_rw.unlock();
-                    
-                //call the onConnect func
-                 _func(*_clients.back() );
+                 }
 
-                 //put update thread
-                 //also takes care of killing and removing client
-                 auto client_thr_update = [](UsrSock* sock, std::mutex& clsz, decltype(_clients)& clients, std::atomic<bool>& stop_thr)
+                 //update all clients
+                 std::lock_guard<std::mutex> lock{_clsz_rw};
+                 auto it = _clients.begin();
+                 while(it != _clients.end() )
                  {
-                    while(!sock->getDestroy() && !stop_thr.load() )
+                    auto sock = (*it).get();
+
+                    if(sock->getDestroy() )
+                    {
+                        _clients.erase(it++);
+                    }
+                    else
                     {
                         try
                         {
@@ -362,18 +371,10 @@ namespace NylonSock
                         {
                             //for now do nothing
                         }
+
+                        ++it;
                     }
-
-                    clsz.lock();
-                    clients.erase(std::remove_if(clients.begin(), clients.end(), [&sock](std::unique_ptr<UsrSock>& usrsock)
-                        {
-                            return (usrsock.get() == sock);
-                        }), clients.end() );
-                    clsz.unlock();
-                 };
-
-                 std::thread update_thread{client_thr_update, _clients.back().get(), std::ref(_clsz_rw), std::ref(_clients), std::ref(_stop_thread)};
-                 update_thread.detach();
+                 }
             }
         };
 
