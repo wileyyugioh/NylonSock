@@ -119,7 +119,6 @@ namespace NylonSock
         virtual ~ClientInterface() = default;
         virtual void on(std::string event_name, SockFunc<T> func) = 0;
         virtual void emit(std::string event_name, const SockData& data) = 0;
-        virtual void update() = 0;
         virtual bool getDestroy() const = 0;
         
     };
@@ -244,7 +243,7 @@ namespace NylonSock
             return _destroy_flag;
         };
 
-        void update() override
+        void update(bool nonblock)
         {
             try
             {
@@ -254,16 +253,13 @@ namespace NylonSock
                     _self_fd = std::make_unique<FD_Set>();
                     _self_fd->set(*_client);
                 }
-                
-                while(true)
+
+                //see if we can recv
+                if(nonblock && select(*_self_fd, TimeVal{1000})[0].size() <= 0)
                 {
-                    //see if we can recv
-                    if(select(*_self_fd, TimeVal{1000})[0].size() <= 0)
-                    {
-                        return;
-                    }
-                    recvData(*_client, _functions);
+                    return;
                 }
+                recvData(*_client, _functions);
             }
             catch (Error& e)
             {               
@@ -357,13 +353,13 @@ namespace NylonSock
                     auto sock = (*it).get();
                     try
                     {
-                        sock->update();
+                        sock->update(true);
                         ++it;
                     }
                     catch(Error& e)
                     {
                         //kill the client
-                         std::lock_guard<std::mutex> lock{_clsz_rw};
+                        std::lock_guard<std::mutex> lock{_clsz_rw};
                         it = _clients.erase(it);
                     }
                  }
@@ -485,7 +481,7 @@ namespace NylonSock
             _server = std::make_unique<Socket>(ip, port, &hints, true);
         };
 
-        void update() override
+        void update()
         {
             std::lock_guard<std::mutex> end{_fin};
             try
@@ -494,7 +490,7 @@ namespace NylonSock
                 {
                     if(_stop_thread.load() || _inter->getDestroy() ) break;
                     
-                    _inter->update();
+                    _inter->update(false);
                 }
             }
             catch(std::exception& e)
