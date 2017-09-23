@@ -45,12 +45,12 @@ int main(int argc, const char * argv[])
 	});
 	
     serv.start();
-    while(serv.count() < 5)
+    while(true)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
-        std::cout << "Connected clients: " << serv.count() << std::endl;
     }
 
+	//It never reaches here, does it...
     serv.stop();
 }
 

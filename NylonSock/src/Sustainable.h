@@ -301,8 +301,9 @@ namespace NylonSock
             addrinfo hints = {0};
             //force server to be ipv6
             //ipv4 and ipv6 addresses can connect
-            hints.ai_family = AF_INET6;
+            hints.ai_family = AF_INET;
             hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = IPPROTO_TCP;
             hints.ai_flags = AI_PASSIVE;
             
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
