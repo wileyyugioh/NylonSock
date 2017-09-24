@@ -329,7 +329,7 @@ namespace NylonSock
             {
                 //this is all accepting new clients
                 //sets[0] is an FD_Set of the sockets ready to be accepted
-                auto sets = select(*_fdset, TimeVal{ 1000 });
+                auto sets = select(*_fdset, TimeVal{100});
                     
                 if (sets[0].size() != 0)
                 {
