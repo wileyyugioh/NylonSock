@@ -53,7 +53,9 @@ namespace NylonSock
     class ClientSocket;
     
     template<class Self>
-    using SockFunc = std::function< void (SockData, Self&)>;
+    using SockFunc = std::function<void(SockData, Self&)>;
+
+    using NoFunc = std::function<void()>;
     
     //used for getting num of digits in a number
     template <unsigned long long N, size_t base=10>
@@ -118,6 +120,7 @@ namespace NylonSock
     public:
         virtual ~ClientInterface() = default;
         virtual void on(std::string event_name, SockFunc<T> func) = 0;
+        virtual void on(std::string event_name, NoFunc func) = 0;
         virtual void emit(std::string event_name, const SockData& data) = 0;
         virtual bool getDestroy() const = 0;
         
@@ -136,12 +139,13 @@ namespace NylonSock
     protected:
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
+        std::unordered_map<std::string, NoFunc> _nofunctions;
         std::unique_ptr<FD_Set> _self_fd;
         T* top_class;
         
         bool _destroy_flag;
 
-        void recvData(Socket& sock, std::unordered_map<std::string, SockFunc<T> >& _functions)
+        void recvData(Socket& sock)
         {
             auto string_to_hex = [](const std::string& input)
             {
@@ -208,15 +212,32 @@ namespace NylonSock
                 recv(sock, &(data[0]), datalensize, NULL);
                 datastr.assign(data.begin(), data.end() );
             }
-            
+
+            eventCall(eventstr, SockData{datastr}, *top_class);
+        }
+
+        void eventCall(std::string eventstr, SockData data, T& tclass)
+        {
             //if the event is in the functions
-            if(_functions.count(eventstr) != 0)
+            auto efind = _functions.find(eventstr);
+            if(efind != _functions.end() )
             {
                 //call it
-                _functions[eventstr](SockData{datastr}, *top_class);
+                (efind->second)(data, tclass);
             }
             
             //else, the data gets thrown away
+        }
+
+        void eventCall(std::string eventstr)
+        {
+            //if the event is in the functions
+            auto efind = _nofunctions.find(eventstr);
+            if(efind != _nofunctions.end() )
+            {
+                //call it
+                (efind->second)();
+            }
         }
 
     public:
@@ -231,6 +252,11 @@ namespace NylonSock
         {
             _functions[event_name] = func;
         };
+
+        void on(std::string event_name, NoFunc func) override
+        {
+            _nofunctions[event_name] = func;
+        }
 
         void emit(std::string event_name, const SockData& data) override
         {
@@ -259,10 +285,12 @@ namespace NylonSock
                 {
                     return;
                 }
-                recvData(*_client, _functions);
+                recvData(*_client);
             }
             catch (Error& e)
-            {               
+            {
+                eventCall("disconnect");
+
                 _client = nullptr;
                 _functions.clear();
                 _self_fd = nullptr;
@@ -526,6 +554,11 @@ namespace NylonSock
         {
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         };
+
+        void on(std::string event_name, NoFunc func) override
+        {
+            if(!_stop_thread.load() ) _inter->on(event_name, func);
+        }
 
         void emit(std::string event_name, const SockData& data) override
         {
