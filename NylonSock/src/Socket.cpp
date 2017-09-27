@@ -55,7 +55,8 @@ namespace NylonSock
         {
             throw Error("Failed to start Winsock2.2");
         }
-        
+#else
+        signal(SIGPIPE, SIG_IGN);
 #endif
     }
     
