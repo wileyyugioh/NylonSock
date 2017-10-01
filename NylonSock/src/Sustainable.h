@@ -11,20 +11,20 @@
 
 #include "Socket.h"
 
-#include <string>
-#include <iomanip>
-#include <sstream>
-#include <cstdio>
-#include <stdexcept>
-#include <vector>
-#include <memory>
-#include <unordered_map>
-#include <thread>
-#include <mutex>
-#include <cstdint>
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
+#include <iomanip>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <unordered_map>
+#include <vector>
 
 /*
  How data is sent:

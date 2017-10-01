@@ -11,13 +11,7 @@
 
 #include "Definitions.h"
 
-#ifdef UNIX_HEADER
-#include <sys/socket.h>
-#include <netdb.h>
-#include <sys/fcntl.h>
-
-typedef int SOCKET;
-#elif defined(PLAT_WIN)
+#ifdef PLAT_WIN
 
 //windows is trippy
 #define _WIN32_WINNT _WIN32_WINNT_WIN8
@@ -35,15 +29,23 @@ enum PortBlockers
     O_NONBLOCK = FIONBIO,
     O_ASYNC = FIONBIO
 };
+
+#elif defined(UNIX_HEADER)
+
+#include <netdb.h>
+#include <sys/fcntl.h>
+#include <sys/socket.h>
+
+typedef int SOCKET;
 #endif
 
+#include <cmath>
+#include <memory>
+#include <mutex>
+#include <set>
 #include <string>
 #include <stdexcept>
-#include <memory>
 #include <vector>
-#include <cmath>
-#include <set>
-#include <mutex>
 
 //Forward Declaration!
 struct timeval;
