@@ -73,7 +73,7 @@ namespace NylonSock
     class TOOBIG : public std::runtime_error
     {
     public:
-        TOOBIG(std::string what);
+        TOOBIG(std::string what): std::runtime_error(what) {};
     };
     
     class SockData
@@ -82,8 +82,19 @@ namespace NylonSock
         std::string raw_data;
         
     public:
-        SockData(std::string data);
-        std::string getRaw() const;
+        SockData(std::string data) : raw_data(data)
+        {
+            if(data.size() > maximum_sock_val)
+            {
+                //throw error because data is too large
+                throw TOOBIG(std::to_string(data.size()) );
+            }
+        };
+
+        std::string getRaw() const
+        {
+            return raw_data;
+        };
     };
 
     void emitSend(std::string event_name, const SockData& data, Socket& socket)

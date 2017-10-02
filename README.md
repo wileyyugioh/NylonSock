@@ -7,6 +7,18 @@ A C++ interface for the C UNIX Sockets Library
 
 The function names should remain unchanged resulting in easy understanding and porting.
 
+# Building
+
+Use CMake
+
+Tested on OSX and Windows, but should work on Linux as well
+
+# Including
+
+```
+#include <nylonsock/NylonSock.hpp>
+```
+
 # Documentation (Incomplete!)
 
 Creating a server is easy, just do

@@ -23,8 +23,8 @@ constexpr int NSWOULDBLOCK = WSAEWOULDBLOCK;
 #include <stdlib.h>
 #include <sys/errno.h>
 #include <sys/signal.h>
-#include <sys/types.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 //make it easier for crossplatform
