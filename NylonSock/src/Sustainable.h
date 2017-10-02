@@ -121,7 +121,7 @@ namespace NylonSock
             raw_data;
 
         //sending total data
-        send(socket, format_str.c_str(), format_str.size(), NULL);
+        send(socket, format_str.c_str(), format_str.size(), 0);
     }
     
     //have to use CRTP
@@ -190,13 +190,13 @@ namespace NylonSock
             
             //receives data from client
             //also assumes socket is non blocking
-            char success = recv(sock, datalen.data(), data_size, NULL);
+            char success = recv(sock, datalen.data(), data_size, 0);
             
             //break when there is no info or an error
             if(success <= 0) return;
             
             //receive event length
-            recv(sock, eventlen.data(), data_size, NULL);
+            recv(sock, eventlen.data(), data_size, 0);
             
             //allocate buffers!
             //char is not guaranteed 8 bit
@@ -210,7 +210,7 @@ namespace NylonSock
             if(eventlensize > 0)
             {
                 event.resize(eventlensize, 0);
-                recv(sock, &(event[0]), eventlensize, NULL);
+                recv(sock, &(event[0]), eventlensize, 0);
                 eventstr.assign(event.begin(), event.end() );
             }
 
@@ -220,7 +220,7 @@ namespace NylonSock
             if(datalensize > 0)
             {
                 data.resize(datalensize, 0);
-                recv(sock, &(data[0]), datalensize, NULL);
+                recv(sock, &(data[0]), datalensize, 0);
                 datastr.assign(data.begin(), data.end() );
             }
 

@@ -14,13 +14,18 @@ set(TEST_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/test)
 file(MAKE_DIRECTORY ${INCLUDE_DIR})
 file(MAKE_DIRECTORY ${LIB_DIR})
 file(MAKE_DIRECTORY ${TEST_DIR})
-
 file(COPY NylonSock/include DESTINATION ${INCLUDE_DIR})
+
 set(EXECUTABLE_OUTPUT_PATH ${TEST_DIR})
 
 ENDIF(NOT WIN32)
 
+set(LIB_NAME nylonsock)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++1y -pthread")
+
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY  ${LIB_DIR})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIB_DIR})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${TEST_DIR})
 
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/include/")
 include_directories("${PROJECT_SOURCE_DIR}/NylonSock/src/")
@@ -34,13 +39,15 @@ set(SRCS
 NylonSock/src/Socket.cpp
 )
 
+set(INCLUDES
+NylonSock/include/NylonSock.hpp
+)
+
 if (BUILD_STATIC)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY  ${LIB_DIR})
-add_library(${PROJECT_NAME} STATIC ${SRCS})
+add_library(${LIB_NAME} STATIC ${SRCS})
 
 else(BUILD_STATIC)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${LIB_DIR})
-add_library(${PROJECT_NAME} SHARED ${SRCS})
+add_library(${LIB_NAME} SHARED ${SRCS})
 ENDIF (BUILD_STATIC)
 
 IF (WIN32)
@@ -51,11 +58,10 @@ IF (BUILD_TESTS)
 add_executable(TestServer NylonSock/test/testserver.cpp)
 add_executable(TestClient NylonSock/test/testclient.cpp)
 
-target_link_libraries(TestServer ${PROJECT_NAME})
-target_link_libraries(TestClient ${PROJECT_NAME})
+target_link_libraries(TestServer ${LIB_NAME})
+target_link_libraries(TestClient ${LIB_NAME})
 
-IF (NOT WIN32)
-INSTALL(TARGETS TestServer TestClient DESTINATION ${TEST_DIR})
-ENDIF(NOT WIN32)
+install(TARGETS ${LIB_NAME} DESTINATION lib)
+install(FILES ${INCLUDES} DESTINATION include)
 
 ENDIF (BUILD_TESTS)
