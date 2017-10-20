@@ -6,32 +6,35 @@
 //  Copyright (c) 2016 Wiley Yu. All rights reserved.
 //
 
-#include "Definitions.h"
-
 #include "Socket.h"
 
-#if defined(UNIX_HEADER)
+#include "Definitions.h"
 
-#include <sys/types.h>
-#include <sys/time.h>
-#include <unistd.h>
+#ifdef PLAT_WIN
+constexpr int SHUT_RD = SD_RECEIVE;
+constexpr int SHUT_WR = SD_SEND;
+constexpr int SHUT_RDWR = SD_BOTH;
+constexpr int NSCONNRESET = WSAECONNRESET;
+constexpr int NSWOULDBLOCK = WSAEWOULDBLOCK;
+
+#elif defined(UNIX_HEADER)
+
 #include <arpa/inet.h>
-#include <sys/errno.h>
 #include <stdlib.h>
-
-//debugging
-#include <iostream>
+#include <sys/errno.h>
+#include <sys/signal.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 //make it easier for crossplatform
 constexpr char INVALID_SOCKET = -1;
 constexpr char SOCKET_ERROR = -1;
 
 typedef int SOCKET;
+constexpr int NSCONNRESET = ECONNRESET;
+constexpr int NSWOULDBLOCK = EWOULDBLOCK;
 
-#elif defined(PLAT_WIN)
-constexpr int SHUT_RD = SD_RECEIVE;
-constexpr int SHUT_WR = SD_SEND;
-constexpr int SHUT_RDWR = SD_BOTH;
 #endif
 
 #include <cstring>
@@ -39,7 +42,6 @@ constexpr int SHUT_RDWR = SD_BOTH;
 
 namespace NylonSock
 {
-
     int NSHelper::_cw = 0;
 
     void NSInit()
@@ -54,7 +56,8 @@ namespace NylonSock
         {
             throw Error("Failed to start Winsock2.2");
         }
-        
+
+        signal(SIGPIPE, SIG_IGN);
 #endif
     }
     
@@ -87,62 +90,56 @@ namespace NylonSock
         }
     }
 #ifdef PLAT_WIN
-	class WinStringWrap
-	{
-	private:
-		LPSTR errString;
-	public:
-		WinStringWrap() = default;
-
-		~WinStringWrap()
-		{
-			LocalFree(errString);
-		};
-
-		LPSTR& get()
-		{
-			return errString;
-		};
-	};
-
-	std::string translateError()
-	{
-		int errCode = WSAGetLastError();
-		WinStringWrap wrap;
-
-		int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-			FORMAT_MESSAGE_FROM_SYSTEM, // use windows internal message table
-			0,       // 0 since source is internal message table
-			errCode, // this is the error code returned by WSAGetLastError()
-					 // Could just as well have been an error code from generic
-					 // Windows errors from GetLastError()
-			0,       // auto-determine language to use
-			(LPSTR)&wrap.get(), // this is WHERE we want FormatMessage
-							   // to plunk the error string.  Note the
-							   // peculiar pass format:  Even though
-							   // errString is already a pointer, we
-							   // pass &errString (which is really type LPSTR* now)
-							   // and then CAST IT to (LPSTR).  This is a really weird
-							   // trip up.. but its how they do it on msdn:
-							   // http://msdn.microsoft.com/en-us/library/ms679351(VS.85).aspx
-			0,                 // min size for buffer
-			0);
-
-		return wrap.get();
-	}
-
-	Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() )
-	{
-	}
-#else
-    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) )
+    class WinStringWrap
     {
+    private:
+        LPSTR errString;
+    public:
+        WinStringWrap() = default;
+
+        ~WinStringWrap()
+        {
+            LocalFree(errString);
+        };
+
+        LPSTR& get()
+        {
+            return errString;
+        };
+    };
+
+    std::string translateError()
+    {
+        int errCode = WSAGetLastError();
+        WinStringWrap wrap;
+
+        int size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+            FORMAT_MESSAGE_FROM_SYSTEM, // use windows internal message table
+            0,       // 0 since source is internal message table
+            errCode, // this is the error code returned by WSAGetLastError()
+                     // Could just as well have been an error code from generic
+                     // Windows errors from GetLastError()
+            0,       // auto-determine language to use
+            (LPSTR)&wrap.get(), // this is WHERE we want FormatMessage
+                               // to plunk the error string.  Note the
+                               // peculiar pass format:  Even though
+                               // errString is already a pointer, we
+                               // pass &errString (which is really type LPSTR* now)
+                               // and then CAST IT to (LPSTR).  This is a really weird
+                               // trip up.. but its how they do it on msdn:
+                               // http://msdn.microsoft.com/en-us/library/ms679351(VS.85).aspx
+            0,                 // min size for buffer
+            0);
+
+        return wrap.get();
     }
+
+    Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() ) {}
+#elif defined(UNIX_HEADER)
+    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) ) {}
 #endif
     
-    Error::Error(std::string what, bool null) : std::runtime_error(what)
-    {
-    }
+    Error::Error(std::string what, bool null) : std::runtime_error(what) {}
     
     SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
     
@@ -153,22 +150,44 @@ namespace NylonSock
     {
     private:
         SOCKET _sock;
+
+        void closeSocket()
+        {
+            if (_sock != INVALID_SOCKET)
+            {
+                shutdown(_sock, SHUT_RDWR);
+#ifdef PLAT_WIN
+                closesocket(_sock);
+#elif defined(UNIX_HEADER)
+                close(_sock);
+#endif
+            }
+        }
         
     public:
-        SocketWrapper(addrinfo& res)
+        SocketWrapper(addrinfo& res, bool autoconnect)
         {
             //loop through all of the ai until one works
             addrinfo* ptr;
             for(ptr = &res; ptr != nullptr; ptr = res.ai_next)
             {
-                _sock = ::socket(res.ai_family, res.ai_socktype, res.ai_protocol);
-                if(_sock != INVALID_SOCKET)
+                _sock = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
+                if(_sock == INVALID_SOCKET)
                 {
-                    break;
+                    continue;
                 }
+
+                if(autoconnect && ::connect(_sock, ptr->ai_addr, ptr->ai_addrlen) == -1)
+                {
+                    closeSocket();
+                    continue;
+                }
+
+                break;
+
             }
             
-            if(_sock == INVALID_SOCKET)
+            if(ptr == nullptr)
             {
                 throw Error("Failed to create socket");
             }
@@ -194,15 +213,7 @@ namespace NylonSock
         
         ~SocketWrapper()
         {
-            if (_sock != INVALID_SOCKET)
-            {
-                shutdown(_sock, SHUT_RDWR);
-#ifdef UNIX_HEADER
-                close(_sock);
-#elif defined(PLAT_WIN)
-                closesocket(_sock);
-#endif
-            }
+            closeSocket();
         }
         
         operator SOCKET()
@@ -291,15 +302,16 @@ namespace NylonSock
         }
     };
     
-    Socket::Socket(const char* node, const char* service, const addrinfo* hints)
+    Socket::Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect)
     {
         _info = std::make_shared<AddrWrapper>(node, service, hints);
         
         //socket creation
-        _sw = std::make_shared<SocketWrapper>(*_info->get() );
+        _sw = std::make_shared<SocketWrapper>(*_info->get(), autoconnect);
     }
     
-    Socket::Socket(std::string node, std::string service, const addrinfo* hints) : Socket(node.c_str(), service.c_str(), hints)
+    Socket::Socket(std::string node, std::string service, const addrinfo* hints, bool autoconnect) : 
+        Socket(node.c_str(), service.c_str(), hints, autoconnect)
     {
         
     }
@@ -396,13 +408,13 @@ namespace NylonSock
     
     void connect(const Socket& sock)
     {
-		//connects socket to host
-		char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
+        //connects socket to host
+        char success = ::connect(sock.port(), sock->ai_addr, sock->ai_addrlen);
 
-		if (success == SOCKET_ERROR)
-		{
-			throw Error("Failed to connect to socket");
-		}
+        if (success == SOCKET_ERROR)
+        {
+            throw Error("Failed to connect to socket");
+        }
     }
     
     void listen(const Socket& sock, unsigned char backlog)
@@ -442,7 +454,7 @@ namespace NylonSock
         {
 #ifndef PLAT_WIN
             size += ::send(sock.port(), buf, len, flags);
-#else
+#elif defined(UNIX_HEADER)
             //needs to be cast to const char* for winsock2
             size += ::send(sock.port(), (const char*)buf, len, flags);
 #endif
@@ -458,24 +470,26 @@ namespace NylonSock
     
     size_t recv(const Socket& sock, void* buf, size_t len, int flags)
     {
+        int NSerrno = 0;
 #ifndef PLAT_WIN
         auto size = ::recv(sock.port(), buf, len, flags);
-#else
+        if(size == SOCKET_ERROR) NSerrno = errno;
+#elif defined(UNIX_HEADER)
         //casting to char* for winsock
         auto size = ::recv(sock.port(), (char*)buf, len, flags);
+        if(size == SOCKET_ERROR) NSerrno = WSAGetLastError();
 #endif
-        
-        if(size == SOCKET_ERROR && errno == ECONNRESET)
+        if(size == SOCKET_ERROR && NSerrno == NSCONNRESET)
         {
             throw PEER_RESET("Connection reset by peer");
         }
         
-        if(size == SOCKET_ERROR && errno != EWOULDBLOCK)
+        if(size == SOCKET_ERROR && NSerrno != NSWOULDBLOCK)
         {
             throw Error(std::string{"Failed to receive data from socket."});
         }
         
-        if(size == SOCKET_ERROR && errno == EWOULDBLOCK)
+        if(size == SOCKET_ERROR && NSerrno == NSWOULDBLOCK)
         {
             return 0;
         }
@@ -492,7 +506,7 @@ namespace NylonSock
     {
 #ifndef PLAT_WIN
         auto size = ::sendto(sock.port(), buf, len, flags, dest->ai_addr, dest->ai_addrlen);
-#else
+#elif defined(UNIX_HEADER)
         auto size = ::sendto(sock.port(), (const char*)buf, len, flags, dest->ai_addr, dest->ai_addrlen);
 #endif
         if(size == SOCKET_ERROR)
@@ -508,7 +522,7 @@ namespace NylonSock
         auto rm_const = dest->ai_addrlen;
 #ifndef PLAT_WIN
         auto size = ::recvfrom(sock.port(), buf, len, flags, dest->ai_addr, &rm_const);
-#else
+#elif defined(UNIX_HEADER)
         int rm_const_cast = static_cast<int>(rm_const);
         auto size = ::recvfrom(sock.port(), (char*)buf, len, flags, dest->ai_addr, &rm_const_cast);
 #endif
@@ -554,7 +568,7 @@ namespace NylonSock
     void fcntl(const Socket& sock, long args)
     {
 #ifndef PLAT_WIN
-        constexpr int SOCKET_TYPE = F_SETFL;
+        constexpr int COMMAND_TYPE = F_SETFL;
 #endif
         if(args != O_NONBLOCK && args != O_ASYNC)
         {
@@ -562,8 +576,8 @@ namespace NylonSock
         }
         
 #ifndef PLAT_WIN
-        char success = ::fcntl(sock.port(), SOCKET_TYPE, args);
-#else
+        char success = ::fcntl(sock.port(), COMMAND_TYPE, args);
+#elif defined(UNIX_HEADER)
         u_long is_true = 1;
         char success = ioctlsocket(sock.port(), args, &is_true);
 #endif
@@ -700,7 +714,7 @@ namespace NylonSock
     {
 #ifndef PLAT_WIN
         return _sock.size();
-#else
+#elif defined(UNIX_HEADER)
         return _set->get()->fd_count;
 #endif
     }
@@ -720,7 +734,7 @@ namespace NylonSock
 #ifndef PLAT_WIN
         //                                        read      write     except
         char success = ::select(set.getMax() + 1, &data[0], &data[1], &data[2], &timeout);
-#else
+#elif defined(UNIX_HEADER)
         char success = ::select(NULL, &data[0], &data[1], &data[2], &timeout);
 #endif
         
@@ -768,7 +782,7 @@ namespace NylonSock
     {
 #ifndef PLAT_WIN
         char success = ::setsockopt(sock.port(), level, optname, optval, optlen);
-#else
+#elif defined(UNIX_HEADER)
         char success = ::setsockopt(sock.port(), level, optname, (const char*)optval, optlen);
 #endif
         if(success == SOCKET_ERROR)

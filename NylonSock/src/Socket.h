@@ -11,13 +11,7 @@
 
 #include "Definitions.h"
 
-#ifdef UNIX_HEADER
-#include <sys/socket.h>
-#include <netdb.h>
-#include <sys/fcntl.h>
-
-typedef int SOCKET;
-#elif defined(PLAT_WIN)
+#ifdef PLAT_WIN
 
 //windows is trippy
 #define _WIN32_WINNT _WIN32_WINNT_WIN8
@@ -32,18 +26,26 @@ typedef int SOCKET;
 
 enum PortBlockers
 {
-	O_NONBLOCK = FIONBIO,
-	O_ASYNC = FIONBIO
+    O_NONBLOCK = FIONBIO,
+    O_ASYNC = FIONBIO
 };
+
+#elif defined(UNIX_HEADER)
+
+#include <netdb.h>
+#include <sys/fcntl.h>
+#include <sys/socket.h>
+
+typedef int SOCKET;
 #endif
 
+#include <cmath>
+#include <memory>
+#include <mutex>
+#include <set>
 #include <string>
 #include <stdexcept>
-#include <memory>
 #include <vector>
-#include <cmath>
-#include <set>
-#include <mutex>
 
 //Forward Declaration!
 struct timeval;
@@ -51,8 +53,8 @@ struct timeval;
 //THE MEATY STUFF
 namespace NylonSock
 {
-	void NSInit();
-	void NSRelease();
+    void NSInit();
+    void NSRelease();
 
     class NSHelper
     {
@@ -73,11 +75,11 @@ namespace NylonSock
         Error(std::string what, bool null);
     };
 
-	class SOCK_CLOSED : public Error
-	{
-	public:
-		SOCK_CLOSED(std::string what);
-	};
+    class SOCK_CLOSED : public Error
+    {
+    public:
+        SOCK_CLOSED(std::string what);
+    };
     
     class PEER_RESET : public Error
     {
@@ -97,9 +99,8 @@ namespace NylonSock
 
         NSHelper _the_help{};
     public:
-        Socket(const char* node, const char* service, const addrinfo* hints);
-        Socket(std::string node, std::string service, const addrinfo* hints);
-        [[deprecated]]
+        Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect = false);
+        Socket(std::string node, std::string service, const addrinfo* hints, bool autoconnect = false);
         Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
         Socket() = default;
@@ -113,7 +114,7 @@ namespace NylonSock
         size_t size() const;
         bool operator ==(const Socket& that) const;
 
-		void freeaddrinfo();
+        void freeaddrinfo();
     };
     
     const Socket NULL_SOCKET{};
@@ -163,7 +164,7 @@ namespace NylonSock
         
         size_t size() const;
 #ifndef PLAT_WIN
-		//returns size of set
+        //returns size of set
         int getMax() const;
 #endif
         

@@ -32,9 +32,12 @@ int main(int argc, const char * argv[])
 
 	serv.onConnect([&](TestClientSock& sock)
 	{
-        sock.on("usrname", [](SockData data, TestClientSock& sock)
+        sock.on("usrname", [&](SockData data, TestClientSock& sock)
         {
             sock.usrname = data.getRaw();
+
+            std::cout << sock.usrname + " joined the server." << std::endl;
+            serv.emit("msgSend", {sock.usrname + " joined the server."});
         });
 
         sock.on("msgGet", [&](SockData data, TestClientSock& sock)
@@ -42,15 +45,21 @@ int main(int argc, const char * argv[])
             std::cout << sock.usrname + ": " + data.getRaw() << std::endl;
             serv.emit("msgSend", {sock.usrname + ": " + data.getRaw()});
         });
+
+        sock.on("disconnect", [&]()
+        {
+            std::cout << sock.usrname + " left the server." << std::endl;
+            serv.emit("msgSend", {sock.usrname + " left the server."});
+        });
 	});
 	
     serv.start();
-    while(serv.count() < 5)
+    while(true)
     {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
-        std::cout << "Connected clients: " << serv.count() << std::endl;
     }
 
+	//It never reaches here, does it...
     serv.stop();
 }
 
