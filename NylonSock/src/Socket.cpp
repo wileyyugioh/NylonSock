@@ -57,6 +57,7 @@ namespace NylonSock
             throw Error("Failed to start Winsock2.2");
         }
 
+#elif defined(UNIX_HEADER)
         signal(SIGPIPE, SIG_IGN);
 #endif
     }
@@ -163,13 +164,13 @@ namespace NylonSock
 #endif
             }
         }
-        
+
     public:
         SocketWrapper(addrinfo& res, bool autoconnect)
         {
             //loop through all of the ai until one works
             addrinfo* ptr;
-            for(ptr = &res; ptr != nullptr; ptr = res.ai_next)
+            for(ptr = &res; ptr != nullptr; ptr = ptr->ai_next)
             {
                 _sock = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
                 if(_sock == INVALID_SOCKET)
@@ -177,21 +178,20 @@ namespace NylonSock
                     continue;
                 }
 
-                if(autoconnect && ::connect(_sock, ptr->ai_addr, ptr->ai_addrlen) == -1)
+                if(autoconnect && ::connect(_sock, ptr->ai_addr, ptr->ai_addrlen) == SOCKET_ERROR)
                 {
                     closeSocket();
                     continue;
                 }
-
-                break;
-
+				
+				break;
             }
             
             if(ptr == nullptr)
             {
                 throw Error("Failed to create socket");
             }
-            
+			
             res = *ptr;
         }
         
@@ -684,7 +684,7 @@ namespace NylonSock
     void FD_Set::clr(const Socket& sock)
     {
         FD_CLR(sock.port(), _set->get() );
-#ifdef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock.erase(sock.port() );
 #endif
     }
@@ -692,7 +692,7 @@ namespace NylonSock
     void FD_Set::zero()
     {
         FD_ZERO(_set->get() );
-#ifdef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock.clear();
 #endif
     }

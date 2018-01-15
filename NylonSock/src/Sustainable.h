@@ -343,6 +343,13 @@ namespace NylonSock
             hints.ai_flags = AI_PASSIVE;
             
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
+			
+#ifdef WIN_PLAT
+			//needed because windows ipv6 doesn't accept ipv4
+			const int n = 0;
+			setsockopt(_sock, IPV6_V6ONLY, (char*)&no, sizeof(no) );
+#endif
+
             fcntl(*_server, O_NONBLOCK);
             
             bind(*_server);
