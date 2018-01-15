@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+
 /*
  How data is sent:
  
@@ -342,6 +343,13 @@ namespace NylonSock
             hints.ai_flags = AI_PASSIVE;
             
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
+			
+#ifdef PLAT_WIN
+			//needed because windows ipv6 doesn't accept ipv4
+			const int n = 0;
+			setsockopt(*_server, IPPROTO_IPV6, IPV6_V6ONLY, &n, sizeof(n) );
+#endif
+
             fcntl(*_server, O_NONBLOCK);
             
             bind(*_server);
@@ -349,17 +357,6 @@ namespace NylonSock
             constexpr int backlog = 100;
             
             listen(*_server, backlog);
-        };
-        
-        void addToSet()
-        {
-            //lazy
-            if(_fdset == nullptr)
-            {
-                _fdset = std::make_unique<FD_Set>();
-            }
-            
-            _fdset->set(*_server);
         };
 
         void update()
@@ -421,7 +418,10 @@ namespace NylonSock
         Server(std::string port)
         {
             createServer(port);
-            addToSet();
+
+            // create fdset
+            _fdset = std::make_unique<FD_Set>();
+            _fdset->set(*_server);
         };
         
         Server(int port) : Server(std::to_string(port) )
@@ -532,7 +532,7 @@ namespace NylonSock
                     _inter->update(false);
                 }
             }
-            catch(std::exception& e)
+            catch(Error& e)
             {
                 stop();
             }

@@ -57,6 +57,7 @@ namespace NylonSock
             throw Error("Failed to start Winsock2.2");
         }
 
+#elif defined(UNIX_HEADER)
         signal(SIGPIPE, SIG_IGN);
 #endif
     }
@@ -163,13 +164,13 @@ namespace NylonSock
 #endif
             }
         }
-        
+
     public:
         SocketWrapper(addrinfo& res, bool autoconnect)
         {
             //loop through all of the ai until one works
             addrinfo* ptr;
-            for(ptr = &res; ptr != nullptr; ptr = res.ai_next)
+            for(ptr = &res; ptr != nullptr; ptr = ptr->ai_next)
             {
                 _sock = ::socket(ptr->ai_family, ptr->ai_socktype, ptr->ai_protocol);
                 if(_sock == INVALID_SOCKET)
@@ -177,21 +178,20 @@ namespace NylonSock
                     continue;
                 }
 
-                if(autoconnect && ::connect(_sock, ptr->ai_addr, ptr->ai_addrlen) == -1)
+                if(autoconnect && ::connect(_sock, ptr->ai_addr, ptr->ai_addrlen) == SOCKET_ERROR)
                 {
                     closeSocket();
                     continue;
                 }
-
-                break;
-
+				
+				break;
             }
             
             if(ptr == nullptr)
             {
                 throw Error("Failed to create socket");
             }
-            
+			
             res = *ptr;
         }
         
@@ -452,11 +452,11 @@ namespace NylonSock
         size_t size = 0;
         while(size != len)
         {
-#ifndef PLAT_WIN
-            size += ::send(sock.port(), buf, len, flags);
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
             //needs to be cast to const char* for winsock2
             size += ::send(sock.port(), (const char*)buf, len, flags);
+#elif defined(UNIX_HEADER)
+            size += ::send(sock.port(), buf, len, flags);
 #endif
 
             if(size == SOCKET_ERROR)
@@ -471,13 +471,13 @@ namespace NylonSock
     size_t recv(const Socket& sock, void* buf, size_t len, int flags)
     {
         int NSerrno = 0;
-#ifndef PLAT_WIN
-        auto size = ::recv(sock.port(), buf, len, flags);
-        if(size == SOCKET_ERROR) NSerrno = errno;
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         //casting to char* for winsock
         auto size = ::recv(sock.port(), (char*)buf, len, flags);
         if(size == SOCKET_ERROR) NSerrno = WSAGetLastError();
+#elif defined(UNIX_HEADER)
+        auto size = ::recv(sock.port(), buf, len, flags);
+        if(size == SOCKET_ERROR) NSerrno = errno;
 #endif
         if(size == SOCKET_ERROR && NSerrno == NSCONNRESET)
         {
@@ -504,10 +504,10 @@ namespace NylonSock
     
     size_t sendto(const Socket& sock, const void* buf, size_t len, unsigned int flags, const Socket& dest)
     {
-#ifndef PLAT_WIN
-        auto size = ::sendto(sock.port(), buf, len, flags, dest->ai_addr, dest->ai_addrlen);
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         auto size = ::sendto(sock.port(), (const char*)buf, len, flags, dest->ai_addr, dest->ai_addrlen);
+#elif defined(UNIX_HEADER)
+        auto size = ::sendto(sock.port(), buf, len, flags, dest->ai_addr, dest->ai_addrlen);
 #endif
         if(size == SOCKET_ERROR)
         {
@@ -520,11 +520,11 @@ namespace NylonSock
     size_t recvfrom(const Socket& sock, void* buf, size_t len, unsigned int flags, const Socket& dest)
     {
         auto rm_const = dest->ai_addrlen;
-#ifndef PLAT_WIN
-        auto size = ::recvfrom(sock.port(), buf, len, flags, dest->ai_addr, &rm_const);
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         int rm_const_cast = static_cast<int>(rm_const);
         auto size = ::recvfrom(sock.port(), (char*)buf, len, flags, dest->ai_addr, &rm_const_cast);
+#elif defined(UNIX_HEADER)
+        auto size = ::recvfrom(sock.port(), buf, len, flags, dest->ai_addr, &rm_const);
 #endif
         if(size == SOCKET_ERROR)
         {
@@ -567,7 +567,7 @@ namespace NylonSock
     
     void fcntl(const Socket& sock, long args)
     {
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         constexpr int COMMAND_TYPE = F_SETFL;
 #endif
         if(args != O_NONBLOCK && args != O_ASYNC)
@@ -575,11 +575,11 @@ namespace NylonSock
             throw Error("Arg to fcntl is not O_NONBLOCK or O_ASYNC");
         }
         
-#ifndef PLAT_WIN
-        char success = ::fcntl(sock.port(), COMMAND_TYPE, args);
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         u_long is_true = 1;
         char success = ioctlsocket(sock.port(), args, &is_true);
+#elif defined(UNIX_HEADER)
+        char success = ::fcntl(sock.port(), COMMAND_TYPE, args);
 #endif
         
         if(success == SOCKET_ERROR)
@@ -652,7 +652,7 @@ namespace NylonSock
     FD_Set::FD_Set(const FD_Set& that)
     {
         *_set = *that._set;
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock = that._sock;
 #endif
     }
@@ -660,7 +660,7 @@ namespace NylonSock
     void FD_Set::set(const Socket& sock)
     {
         FD_SET(sock.port(), _set->get() );
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock.insert(sock.port() );
 #endif
     }
@@ -684,7 +684,7 @@ namespace NylonSock
     void FD_Set::clr(const Socket& sock)
     {
         FD_CLR(sock.port(), _set->get() );
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock.erase(sock.port() );
 #endif
     }
@@ -692,7 +692,7 @@ namespace NylonSock
     void FD_Set::zero()
     {
         FD_ZERO(_set->get() );
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         _sock.clear();
 #endif
     }
@@ -702,7 +702,7 @@ namespace NylonSock
         return FD_ISSET(sock.port(), _set->get() );
     }
     
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
     int FD_Set::getMax() const
     {
         return *_sock.rbegin();
@@ -712,10 +712,10 @@ namespace NylonSock
     
     size_t FD_Set::size() const
     {
-#ifndef PLAT_WIN
-        return _sock.size();
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         return _set->get()->fd_count;
+#elif defined(UNIX_HEADER)
+        return _sock.size();
 #endif
     }
     
@@ -727,15 +727,17 @@ namespace NylonSock
     
     std::vector<FD_Set> select(const FD_Set& set, timeval timeout)
     {
+        if(!set.size()) return {};
+
         constexpr char NUM_DATA = 3;
         std::vector<fd_set> data;
         data.resize(NUM_DATA, set.get() );
         
-#ifndef PLAT_WIN
+#ifdef PLAT_WIN
+        char success = ::select(NULL, &data[0], &data[1], &data[2], &timeout);
+#elif defined(UNIX_HEADER)
         //                                        read      write     except
         char success = ::select(set.getMax() + 1, &data[0], &data[1], &data[2], &timeout);
-#elif defined(UNIX_HEADER)
-        char success = ::select(NULL, &data[0], &data[1], &data[2], &timeout);
 #endif
         
         if(success == SOCKET_ERROR)
@@ -780,10 +782,10 @@ namespace NylonSock
     
     void setsockopt(const Socket& sock, int level, int optname, const void *optval, socklen_t optlen)
     {
-#ifndef PLAT_WIN
-        char success = ::setsockopt(sock.port(), level, optname, optval, optlen);
-#elif defined(UNIX_HEADER)
+#ifdef PLAT_WIN
         char success = ::setsockopt(sock.port(), level, optname, (const char*)optval, optlen);
+#elif defined(UNIX_HEADER)
+        char success = ::setsockopt(sock.port(), level, optname, optval, optlen);
 #endif
         if(success == SOCKET_ERROR)
         {
