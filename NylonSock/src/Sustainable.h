@@ -344,10 +344,10 @@ namespace NylonSock
             
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
 			
-#ifdef WIN_PLAT
+#ifdef PLAT_WIN
 			//needed because windows ipv6 doesn't accept ipv4
 			const int n = 0;
-			setsockopt(_sock, IPV6_V6ONLY, (char*)&no, sizeof(no) );
+			setsockopt(*_server, IPPROTO_IPV6, IPV6_V6ONLY, &n, sizeof(n) );
 #endif
 
             fcntl(*_server, O_NONBLOCK);
