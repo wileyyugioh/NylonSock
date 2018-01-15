@@ -147,9 +147,10 @@ namespace NylonSock
         class FD_Wrap;
         
         std::unique_ptr<FD_Wrap> _set;
+
+#ifdef UNIX_HEADER
         //sets are sorted. hurrah!
         //we don't need to worry about sets and ports in windows...
-#ifndef PLAT_WIN
         std::set<int> _sock;
 #endif
         
@@ -163,7 +164,7 @@ namespace NylonSock
         fd_set get() const;
         
         size_t size() const;
-#ifndef PLAT_WIN
+#ifdef UNIX_HEADER
         //returns size of set
         int getMax() const;
 #endif

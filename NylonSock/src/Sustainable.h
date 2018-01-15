@@ -26,6 +26,7 @@
 #include <unordered_map>
 #include <vector>
 
+
 /*
  How data is sent:
  
@@ -350,17 +351,6 @@ namespace NylonSock
             
             listen(*_server, backlog);
         };
-        
-        void addToSet()
-        {
-            //lazy
-            if(_fdset == nullptr)
-            {
-                _fdset = std::make_unique<FD_Set>();
-            }
-            
-            _fdset->set(*_server);
-        };
 
         void update()
         {
@@ -421,7 +411,10 @@ namespace NylonSock
         Server(std::string port)
         {
             createServer(port);
-            addToSet();
+
+            // create fdset
+            _fdset = std::make_unique<FD_Set>();
+            _fdset->set(*_server);
         };
         
         Server(int port) : Server(std::to_string(port) )
