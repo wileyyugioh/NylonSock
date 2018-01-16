@@ -19,7 +19,7 @@ Tested on OSX and Windows, but should work on Linux as well
 #include <nylonsock/NylonSock.hpp>
 ```
 
-# Documentation (Incomplete!)
+# Documentation
 
 Creating a server is easy, just do
 
@@ -67,6 +67,18 @@ Clients use the same format as servers.
 ```
 
 When a client receives the hallo event from a server, it will print out “ok.”
+
+# Running the Test Server / Client
+
+```
+./TestServer
+
+
+In another shell...
+./TestClient localhost
+or
+./TestClient XXX.XXX.XXX.XXX (Local IP Address of the TestServer Computer)
+```
 
 # The Gritty
 
@@ -246,9 +258,3 @@ sel[1]
 //except
 sel[2]
 ```
-
-
-Todo:
-Documentation
-
-Windows support
