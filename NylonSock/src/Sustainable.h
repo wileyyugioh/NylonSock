@@ -361,45 +361,42 @@ namespace NylonSock
 
         void update()
         {
-            while(true)
+            //this is all accepting new clients
+            //sets[0] is an FD_Set of the sockets ready to be accepted
+            auto sets = select(*_fdset, TimeVal{100});
+                
+            if (sets[0].size() != 0)
             {
-                //this is all accepting new clients
-                //sets[0] is an FD_Set of the sockets ready to be accepted
-                auto sets = select(*_fdset, TimeVal{100});
+                auto new_sock = accept(*_server);
                     
-                if (sets[0].size() != 0)
+                _clsz_rw.lock();
+                //it is an actual socket
+                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+
+                _clsz_rw.unlock();
+                    
+                //call the onConnect func
+                 _func(*_clients.back() );
+
+             }
+
+             //update all clients
+             auto it = _clients.begin();
+             while(it != _clients.end() )
+             {
+                auto sock = (*it).get();
+                try
                 {
-                    auto new_sock = accept(*_server);
-                        
-                    _clsz_rw.lock();
-                    //it is an actual socket
-                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
-
-                    _clsz_rw.unlock();
-                        
-                    //call the onConnect func
-                     _func(*_clients.back() );
-
-                 }
-
-                 //update all clients
-                 auto it = _clients.begin();
-                 while(it != _clients.end() )
-                 {
-                    auto sock = (*it).get();
-                    try
-                    {
-                        sock->update(true);
-                        ++it;
-                    }
-                    catch(Error& e)
-                    {
-                        //kill the client
-                        std::lock_guard<std::mutex> lock{_clsz_rw};
-                        it = _clients.erase(it);
-                    }
-                 }
-            }
+                    sock->update(true);
+                    ++it;
+                }
+                catch(Error& e)
+                {
+                    //kill the client
+                    std::lock_guard<std::mutex> lock{_clsz_rw};
+                    it = _clients.erase(it);
+                }
+             }
         };
 
         void thr_update()
