@@ -325,12 +325,12 @@ namespace NylonSock
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
         std::atomic<bool> _stop_thread{true};
+        std::unique_ptr<std::thread> _thread;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
         ServClientFunc _func;
         std::mutex _clsz_rw;
-        std::mutex _fin;
 
         void createServer(std::string port)
         {
@@ -404,7 +404,6 @@ namespace NylonSock
 
         void thr_update()
         {
-            std::lock_guard<std::mutex> end{_fin};
             while(true)
             {
                 if(_stop_thread.load() )
@@ -431,7 +430,6 @@ namespace NylonSock
         ~Server()
         {
             stop();
-            std::lock_guard<std::mutex> end(_fin);
         }
         
         Server(const Server& that) = delete;
@@ -472,13 +470,13 @@ namespace NylonSock
 
             _stop_thread = false;
 
-            auto accepter = std::thread(&Server::thr_update, this);
-            accepter.detach();
+            _thread = std::make_unique<std::thread>(&Server::thr_update, this);
         };
 
         void stop()
         {
             _stop_thread = true;
+            _thread->join();
         };
 
         bool status() const
@@ -509,7 +507,7 @@ namespace NylonSock
         std::unique_ptr<T> _inter;
 
         std::atomic<bool> _stop_thread{true};
-        std::mutex _fin;
+        std::unique_ptr<std::thread> _thread;
         
         void createListener(std::string ip, std::string port)
         {
@@ -522,7 +520,6 @@ namespace NylonSock
 
         void update()
         {
-            std::lock_guard<std::mutex> end{_fin};
             try
             {
                 while(true)
@@ -550,7 +547,6 @@ namespace NylonSock
         ~Client()
         {
             stop();
-            std::lock_guard<std::mutex> end{_fin};
         };
 
         Client(const Client& that) = delete;
@@ -591,13 +587,13 @@ namespace NylonSock
 
             _stop_thread = false;
 
-            auto accepter = std::thread(&Client<T>::update, this);
-            accepter.detach();
+            _thread = std::make_unique<std::thread>(&Client<T>::update, this);
         };
 
         void stop()
         {
             _stop_thread = true;
+            _thread->join();
         };
 
         bool status() const
