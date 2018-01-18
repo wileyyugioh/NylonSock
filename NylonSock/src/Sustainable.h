@@ -71,31 +71,72 @@ namespace NylonSock
         enum { value = 0 };
     };
     
-    class TOOBIG : public std::runtime_error
+    class TOO_BIG : public NylonSock::Error
     {
     public:
-        TOOBIG(std::string what): std::runtime_error(what) {};
+        TOO_BIG(std::string what): Error(what) {};
+    };
+
+    class FAILED_CONVERT : public NylonSock::Error
+    {
+    public:
+        FAILED_CONVERT(std::string what) : Error(what) {};
     };
     
     class SockData
     {
     private:
         std::string raw_data;
-        
-    public:
-        SockData(std::string data) : raw_data(data)
+
+        void initializeByString(const std::string& data)
         {
+            raw_data = data;
+
             if(data.size() > maximum_sock_val)
             {
                 //throw error because data is too large
-                throw TOOBIG(std::to_string(data.size()) );
+                throw TOO_BIG("The data size of " + std::to_string(data.size()) + " is too big.");
             }
+        };
+        
+    public:
+        SockData(const std::string& data)
+        {
+            initializeByString(data);
+        };
+
+        template<typename T>
+        SockData(const T& t)
+        {
+            std::ostringstream oss;
+            std::string result;
+
+            oss << t;
+            result = oss.str();
+
+            initializeByString(result);
         };
 
         std::string getRaw() const
         {
             return raw_data;
         };
+
+        template<typename T>
+        operator T()
+        {
+            std::istringstream ss(getRaw() );
+            T result;
+
+            if(!(ss >> result) ) throw FAILED_CONVERT("Failed to convert SockData into a primitive type.");
+
+            return result;
+        };
+
+        operator std::string()
+        {
+            return getRaw();
+        }
     };
 
     void emitSend(std::string event_name, const SockData& data, Socket& socket)

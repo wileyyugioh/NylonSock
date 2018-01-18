@@ -142,10 +142,6 @@ namespace NylonSock
     
     Error::Error(std::string what, bool null) : std::runtime_error(what) {}
     
-    SOCK_CLOSED::SOCK_CLOSED(std::string what) : Error(what) {};
-    
-    PEER_RESET::PEER_RESET(std::string what) : Error(what) {};
-    
     //needs to be in shared ptr
     class Socket::SocketWrapper
     {
