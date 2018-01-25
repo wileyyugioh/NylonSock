@@ -19,7 +19,7 @@ Tested on OSX and Windows, but should work on Linux as well
 #include <nylonsock/NylonSock.hpp>
 ```
 
-# Documentation (Incomplete!)
+# Documentation
 
 Creating a server is easy, just do
 
@@ -174,7 +174,6 @@ class CustomClient : public NylonSock::ClientSocket<CustomClient>
 public:
     CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
 };
-```
 
 NylonSock::Server<CustomClient> server {PORT_NUM};
 ```
