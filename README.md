@@ -28,7 +28,7 @@ Server<CLIENTSOCK> serv {PORTNUM}
 
 serv.onConnect([](CLIENTSOCK& sock)
 {
-	sock.emit(“Hallo”, {“ok”})
+    sock.emit(“Hallo”, {“ok”})
 });
 
 serv.start();
@@ -93,7 +93,7 @@ An example function to pass to *.on is this:
 ```
 void myfunc(SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
 {
-    mccsc.data = data.getRaw();
+    mccsc.data = data;
 }
 ```
 
@@ -109,9 +109,22 @@ client.on("printValue", [value](SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
 
 Please note that the function is void, and the first parameter is a SockData, and the second is the ClientSocket or inherited class that you passed to the server or class in the form of a template.
 
+It should be noted that there is a special event called "disconnect", which is called when a socket is disconnected.
+
+```
+client.on("disconnect", []()
+{
+    std::cout << "Goodbye" << std::endl;
+});
+```
+
 ## *.emit(EventName, Data);
 
 The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
+
+```
+    client.emit("greetings", {"Hello World!"});
+```
 
 ## *.start()
 
@@ -131,9 +144,19 @@ Constructor:
 
 Takes in a string for the address to connect to for the first argument, and for the second takes in an int for the port to listen to.
 
+```
+class CustomClient : public NylonSock::ClientSocket<CustomClient>
+{
+public:
+    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+};
+
+NylonSock::Client<CustomClient> client {IP_ADDRESS, PORT_NUM};
+```
+
 ### Functions
 
-void on()
+void on(std::string msgstr, NylonSock::SockFunc func)
 
 void emit(std::string msgstr, NylonSock::SockData data)
 
@@ -157,11 +180,39 @@ Returns a reference to the ClientSocket or inherited class you passed in.
 
 Takes in a ClientSocket as a template.
 
+```
+class CustomClient : public NylonSock::ClientSocket<CustomClient>
+{
+public:
+    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+};
+
+NylonSock::Server<CustomClient> server {PORT_NUM};
+```
+
 ### Functions
 
 onConnect(std::function<void (ClientSocket&)>):
 
 Is called upon a new client connecting to the server.
+
+Generally, this means the code should be used something like this:
+
+```
+server.onConnect([](TestClientSocket& sock)
+{
+    sock.on("greeting", [](SockData data, TestClientSock& sock)
+    {
+        std::cout << data.getRaw() << std::endl;
+    });
+
+    sock.on("disconnect", []()
+    {
+        std::cout << "Goodbye" << std::endl;
+    });
+
+});
+```
 
 void start()
 
@@ -183,13 +234,45 @@ The template takes in a ClientSocket class or any inherited class.
 
 Please use CRTP.
 
+```
+class CustomClient : public NylonSock::ClientSocket<CustomClient>
+{
+public:
+    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+};
+```
+
 ### Functions
 
-void on()
+void on(std::string msgstr, NylonSock::SockFunc func)
 
-void emit()
+void emit(std::string msgstr, NylonSock::SockData data)
 
 bool getDestroy()
+
+## SockData class
+
+Constructor:
+
+It uses templates to take in pretty much any value and converts it to a string using stringstreams.
+
+```
+SockData {0};
+SockData {1.1};
+SockData {"Hello World!"};
+```
+
+Getting Values:
+
+SockData uses a template operator to cast values back into their respective types. This also uses stringstreams for conversion.
+
+```
+SockData sockdata{1.56};
+
+int i = sockdata; // 1
+double d = sockdata; // 1.56
+float f = sockdata; // 1.56
+```
 
 # EVERYTHING BEYOND THIS IS LOWER LEVEL
 
@@ -222,7 +305,7 @@ In order to get the port number, use the port method
 sock.port()
 ```
 
-The library also possesses its own functions with the same naming convention as the C UNIX ones. The functions are very similar. However, they throw an exception class, NylonSock::Error upon failure instead of returning -1. 
+The library also possesses its own functions with the same naming convention as the C UNIX ones. The functions are very similar. However, they throw an exception class, NylonSock::Error upon failure instead of returning -1.
 
 The Error class inherits from std::runtime_exception.
 

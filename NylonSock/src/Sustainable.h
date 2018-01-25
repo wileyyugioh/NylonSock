@@ -71,31 +71,72 @@ namespace NylonSock
         enum { value = 0 };
     };
     
-    class TOOBIG : public std::runtime_error
+    class TOO_BIG : public NylonSock::Error
     {
     public:
-        TOOBIG(std::string what): std::runtime_error(what) {};
+        TOO_BIG(std::string what): Error(what) {};
+    };
+
+    class FAILED_CONVERT : public NylonSock::Error
+    {
+    public:
+        FAILED_CONVERT(std::string what) : Error(what) {};
     };
     
     class SockData
     {
     private:
         std::string raw_data;
-        
-    public:
-        SockData(std::string data) : raw_data(data)
+
+        void initializeByString(const std::string& data)
         {
+            raw_data = data;
+
             if(data.size() > maximum_sock_val)
             {
                 //throw error because data is too large
-                throw TOOBIG(std::to_string(data.size()) );
+                throw TOO_BIG("The data size of " + std::to_string(data.size()) + " is too big.");
             }
+        };
+        
+    public:
+        SockData(const std::string& data)
+        {
+            initializeByString(data);
+        };
+
+        template<typename T>
+        SockData(const T& t)
+        {
+            std::ostringstream oss;
+            std::string result;
+
+            oss << t;
+            result = oss.str();
+
+            initializeByString(result);
         };
 
         std::string getRaw() const
         {
             return raw_data;
         };
+
+        template<typename T>
+        operator T()
+        {
+            std::istringstream ss(getRaw() );
+            T result;
+
+            if(!(ss >> result) ) throw FAILED_CONVERT("Failed to convert SockData into a primitive type.");
+
+            return result;
+        };
+
+        operator std::string()
+        {
+            return getRaw();
+        }
     };
 
     void emitSend(std::string event_name, const SockData& data, Socket& socket)
@@ -325,12 +366,12 @@ namespace NylonSock
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
         std::atomic<bool> _stop_thread{true};
+        std::unique_ptr<std::thread> _thread;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
         ServClientFunc _func;
         std::mutex _clsz_rw;
-        std::mutex _fin;
 
         void createServer(std::string port)
         {
@@ -361,50 +402,46 @@ namespace NylonSock
 
         void update()
         {
-            while(true)
+            //this is all accepting new clients
+            //sets[0] is an FD_Set of the sockets ready to be accepted
+            auto sets = select(*_fdset, TimeVal{100});
+                
+            if (sets[0].size() != 0)
             {
-                //this is all accepting new clients
-                //sets[0] is an FD_Set of the sockets ready to be accepted
-                auto sets = select(*_fdset, TimeVal{100});
+                auto new_sock = accept(*_server);
                     
-                if (sets[0].size() != 0)
+                _clsz_rw.lock();
+                //it is an actual socket
+                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+
+                _clsz_rw.unlock();
+                    
+                //call the onConnect func
+                 _func(*_clients.back() );
+
+             }
+
+             //update all clients
+             auto it = _clients.begin();
+             while(it != _clients.end() )
+             {
+                auto sock = (*it).get();
+                try
                 {
-                    auto new_sock = accept(*_server);
-                        
-                    _clsz_rw.lock();
-                    //it is an actual socket
-                    _clients.push_back(std::make_unique<UsrSock>(new_sock) );
-
-                    _clsz_rw.unlock();
-                        
-                    //call the onConnect func
-                     _func(*_clients.back() );
-
-                 }
-
-                 //update all clients
-                 auto it = _clients.begin();
-                 while(it != _clients.end() )
-                 {
-                    auto sock = (*it).get();
-                    try
-                    {
-                        sock->update(true);
-                        ++it;
-                    }
-                    catch(Error& e)
-                    {
-                        //kill the client
-                        std::lock_guard<std::mutex> lock{_clsz_rw};
-                        it = _clients.erase(it);
-                    }
-                 }
-            }
+                    sock->update(true);
+                    ++it;
+                }
+                catch(Error& e)
+                {
+                    //kill the client
+                    std::lock_guard<std::mutex> lock{_clsz_rw};
+                    it = _clients.erase(it);
+                }
+             }
         };
 
         void thr_update()
         {
-            std::lock_guard<std::mutex> end{_fin};
             while(true)
             {
                 if(_stop_thread.load() )
@@ -431,7 +468,6 @@ namespace NylonSock
         ~Server()
         {
             stop();
-            std::lock_guard<std::mutex> end(_fin);
         }
         
         Server(const Server& that) = delete;
@@ -472,13 +508,13 @@ namespace NylonSock
 
             _stop_thread = false;
 
-            auto accepter = std::thread(&Server::thr_update, this);
-            accepter.detach();
+            _thread = std::make_unique<std::thread>(&Server::thr_update, this);
         };
 
         void stop()
         {
             _stop_thread = true;
+            _thread->join();
         };
 
         bool status() const
@@ -509,7 +545,7 @@ namespace NylonSock
         std::unique_ptr<T> _inter;
 
         std::atomic<bool> _stop_thread{true};
-        std::mutex _fin;
+        std::unique_ptr<std::thread> _thread;
         
         void createListener(std::string ip, std::string port)
         {
@@ -522,7 +558,6 @@ namespace NylonSock
 
         void update()
         {
-            std::lock_guard<std::mutex> end{_fin};
             try
             {
                 while(true)
@@ -550,7 +585,6 @@ namespace NylonSock
         ~Client()
         {
             stop();
-            std::lock_guard<std::mutex> end{_fin};
         };
 
         Client(const Client& that) = delete;
@@ -591,13 +625,13 @@ namespace NylonSock
 
             _stop_thread = false;
 
-            auto accepter = std::thread(&Client<T>::update, this);
-            accepter.detach();
+            _thread = std::make_unique<std::thread>(&Client<T>::update, this);
         };
 
         void stop()
         {
             _stop_thread = true;
+            _thread->join();
         };
 
         bool status() const
