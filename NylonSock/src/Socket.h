@@ -117,6 +117,8 @@ namespace NylonSock
         void freeaddrinfo();
     };
     
+    constexpr char SUCCESS = 0;
+    constexpr char CLOSED = -1;
     const Socket NULL_SOCKET{};
     
     void bind(Socket& sock);

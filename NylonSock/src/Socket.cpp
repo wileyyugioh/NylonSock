@@ -455,7 +455,7 @@ namespace NylonSock
             size += ::send(sock.port(), buf, len, flags);
 #endif
 
-            if(size == SOCKET_ERROR)
+            if(size == CLOSED)
             {
                 throw Error("Failed to send data to socket");
             }

@@ -198,7 +198,7 @@ namespace NylonSock
         
         bool _destroy_flag;
 
-        void recvData(Socket& sock)
+        char recvData(Socket& sock)
         {
             auto string_to_hex = [](const std::string& input)
             {
@@ -235,7 +235,7 @@ namespace NylonSock
             char success = recv(sock, datalen.data(), data_size, 0);
             
             //break when there is no info or an error
-            if(success <= 0) return;
+            if(success <= 0) return success;
             
             //receive event length
             recv(sock, eventlen.data(), data_size, 0);
@@ -267,6 +267,8 @@ namespace NylonSock
             }
 
             eventCall(eventstr, SockData{datastr}, *top_class);
+
+            return NylonSock::SUCCESS;
         }
 
         void eventCall(std::string eventstr, SockData data, T& tclass)
@@ -338,20 +340,18 @@ namespace NylonSock
                 {
                     return;
                 }
-                recvData(*_client);
+                char success = recvData(*_client);
+                if(success == NylonSock::SUCCESS) return;
             }
-            catch (Error& e)
-            {
-                eventCall("disconnect");
+            catch (NylonSock::Error& e) {}
 
-                _client = nullptr;
-                _functions.clear();
-                _self_fd = nullptr;
-                
-                _destroy_flag = true;
+            eventCall("disconnect");
 
-                throw e;
-            }
+            _client = nullptr;
+            _functions.clear();
+            _self_fd = nullptr;
+            
+            _destroy_flag = true;
         };
 
     };
@@ -426,17 +426,15 @@ namespace NylonSock
              while(it != _clients.end() )
              {
                 auto sock = (*it).get();
-                try
+                if(!sock->getDestroy())
                 {
                     sock->update(true);
                     ++it;
+                    continue;
                 }
-                catch(Error& e)
-                {
-                    //kill the client
-                    std::lock_guard<std::mutex> lock{_clsz_rw};
-                    it = _clients.erase(it);
-                }
+                //kill the client
+                std::lock_guard<std::mutex> lock{_clsz_rw};
+                it = _clients.erase(it);
              }
         };
 
@@ -558,18 +556,20 @@ namespace NylonSock
 
         void update()
         {
-            try
+            class RAIIMe
             {
-                while(true)
-                {
-                    if(_stop_thread.load() || _inter->getDestroy() ) break;
-                    
-                    _inter->update(false);
-                }
-            }
-            catch(Error& e)
+            private:
+                Client* _c;
+            public:
+                RAIIMe(Client* c) : _c(c) {};
+                ~RAIIMe() {_c->stop();};
+            };
+            RAIIMe rm{this};
+            while(true)
             {
-                stop();
+                if(_stop_thread.load() || _inter->getDestroy() ) break;
+                
+                _inter->update(false);
             }
         };
 
