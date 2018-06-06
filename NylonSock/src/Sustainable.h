@@ -62,25 +62,25 @@ namespace NylonSock
     template <unsigned long long N, size_t base=10>
     struct numberlength
     {
-        enum { value = 1 + numberlength<N/base, base>::value };            
+        enum {value = 1 + numberlength<N/base, base>::value};            
     };
 
     template <size_t base>
     struct numberlength<0, base>
     {
-        enum { value = 0 };
+        enum {value = 0};
     };
     
     class TOO_BIG : public NylonSock::Error
     {
     public:
-        TOO_BIG(std::string what): Error(what) {};
+        TOO_BIG(std::string what): Error(what) {}
     };
 
     class FAILED_CONVERT : public NylonSock::Error
     {
     public:
-        FAILED_CONVERT(std::string what) : Error(what) {};
+        FAILED_CONVERT(std::string what) : Error(what) {}
     };
     
     class SockData
@@ -97,13 +97,13 @@ namespace NylonSock
                 //throw error because data is too large
                 throw TOO_BIG("The data size of " + std::to_string(data.size()) + " is too big.");
             }
-        };
+        }
         
     public:
         SockData(const std::string& data)
         {
             initializeByString(data);
-        };
+        }
 
         template<typename T>
         SockData(const T& t)
@@ -115,12 +115,12 @@ namespace NylonSock
             result = oss.str();
 
             initializeByString(result);
-        };
+        }
 
         std::string getRaw() const
         {
             return raw_data;
-        };
+        }
 
         template<typename T>
         operator T()
@@ -131,7 +131,7 @@ namespace NylonSock
             if(!(ss >> result) ) throw FAILED_CONVERT("Failed to convert SockData into a primitive type.");
 
             return result;
-        };
+        }
 
         operator std::string()
         {
@@ -170,12 +170,14 @@ namespace NylonSock
     template<class T>
     class ClientInterface
     {
+    private:
+        T& impl() {return *static_cast<T*>(this);}
     public:
         virtual ~ClientInterface() = default;
-        virtual void on(std::string event_name, SockFunc<T> func) = 0;
-        virtual void on(std::string event_name, NoFunc func) = 0;
-        virtual void emit(std::string event_name, const SockData& data) = 0;
-        virtual bool getDestroy() const = 0;
+        void on(std::string event_name, SockFunc<T> func) {impl().on(event_name, func);}
+        void on(std::string event_name, NoFunc func) {impl().on(event_name, func);}
+        void emit(std::string event_name, const SockData& data) {impl().emit(event_name, data);}
+        bool getDestroy() const {impl().getDestroy();}
         
     };
     
@@ -186,7 +188,7 @@ namespace NylonSock
         class CLOSE : public std::runtime_error
         {
         public:
-            CLOSE(std::string err) : std::runtime_error(err) {};
+            CLOSE(std::string err) : std::runtime_error(err) {}
         };
 
     protected:
@@ -299,30 +301,28 @@ namespace NylonSock
         ClientSocket(Socket sock) : top_class(static_cast<T*>(this) ), _destroy_flag(false)
         {
             _client = std::make_unique<Socket>(sock);
-        };
+        }
 
-        virtual ~ClientSocket() = default;
-
-        void on(std::string event_name, SockFunc<T> func) override
+        void on(std::string event_name, SockFunc<T> func)
         {
             _functions[event_name] = func;
-        };
+        }
 
-        void on(std::string event_name, NoFunc func) override
+        void on(std::string event_name, NoFunc func)
         {
             _nofunctions[event_name] = func;
         }
 
-        void emit(std::string event_name, const SockData& data) override
+        void emit(std::string event_name, const SockData& data)
         {
             //sends data to client
             emitSend(event_name, data, *_client);
-        };
+        }
 
-        bool getDestroy() const override
+        bool getDestroy() const
         {
             return _destroy_flag;
-        };
+        }
 
         void update(bool nonblock)
         {
@@ -352,7 +352,7 @@ namespace NylonSock
             _self_fd = nullptr;
             
             _destroy_flag = true;
-        };
+        }
 
     };
     
@@ -398,7 +398,7 @@ namespace NylonSock
             constexpr int backlog = 100;
             
             listen(*_server, backlog);
-        };
+        }
 
         void update()
         {
@@ -436,7 +436,7 @@ namespace NylonSock
                 std::lock_guard<std::mutex> lock{_clsz_rw};
                 it = _clients.erase(it);
              }
-        };
+        }
 
         void thr_update()
         {
@@ -449,6 +449,7 @@ namespace NylonSock
                 update();
             }
         }
+
     public:
         Server(std::string port)
         {
@@ -457,16 +458,11 @@ namespace NylonSock
             // create fdset
             _fdset = std::make_unique<FD_Set>();
             _fdset->set(*_server);
-        };
-        
-        Server(int port) : Server(std::to_string(port) )
-        {
-        };
-
-        ~Server()
-        {
-            stop();
         }
+        
+        Server(int port) : Server(std::to_string(port) ) {}
+
+        ~Server() {stop();}
         
         Server(const Server& that) = delete;
 
@@ -479,7 +475,7 @@ namespace NylonSock
         void onConnect(ServClientFunc func)
         {
             _func = func;
-        };
+        }
         
         void emit(std::string event_name, SockData data)
         {
@@ -488,13 +484,13 @@ namespace NylonSock
             {
                 it->emit(event_name, data);
             }
-        };
+        }
 
         unsigned long count() 
         {
             std::lock_guard<std::mutex> lock {_clsz_rw};
             return _clients.size();
-        };
+        }
 
         void start()
         {
@@ -507,24 +503,24 @@ namespace NylonSock
             _stop_thread = false;
 
             _thread = std::make_unique<std::thread>(&Server::thr_update, this);
-        };
+        }
 
         void stop()
         {
             _stop_thread = true;
             _thread->join();
-        };
+        }
 
         bool status() const
         {
             return !_stop_thread.load();
-        };
+        }
 
         UsrSock& getUsrSock(unsigned int pos)
         {
             std::lock_guard<std::mutex> lock{_clsz_rw};
             return *_clients.at(pos);
-        };
+        }
 
     };
     
@@ -552,7 +548,7 @@ namespace NylonSock
             hints.ai_socktype = SOCK_STREAM;
             
             _server = std::make_unique<Socket>(ip, port, &hints, true);
-        };
+        }
 
         void update()
         {
@@ -564,6 +560,7 @@ namespace NylonSock
                 RAIIMe(Client* c) : _c(c) {};
                 ~RAIIMe() {_c->stop();};
             };
+
             RAIIMe rm{this};
             while(true)
             {
@@ -571,21 +568,21 @@ namespace NylonSock
                 
                 _inter->update(false);
             }
-        };
+        }
 
     public:
         Client(std::string ip, std::string port)
         {
              createListener(ip, port);
             _inter = std::make_unique<T>(*_server);
-        };
+        }
 
-        Client(std::string ip, int port) : Client(ip, std::to_string(port) ) {};
+        Client(std::string ip, int port) : Client(ip, std::to_string(port) ) {}
 
         ~Client()
         {
             stop();
-        };
+        }
 
         Client(const Client& that) = delete;
 
@@ -595,25 +592,25 @@ namespace NylonSock
 
         Client& operator=(Client&& that) = delete;
 
-        void on(std::string event_name, SockFunc<T> func) override
-        {
-            if(!_stop_thread.load() ) _inter->on(event_name, func);
-        };
-
-        void on(std::string event_name, NoFunc func) override
+        void on(std::string event_name, SockFunc<T> func)
         {
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         }
 
-        void emit(std::string event_name, const SockData& data) override
+        void on(std::string event_name, NoFunc func)
+        {
+            if(!_stop_thread.load() ) _inter->on(event_name, func);
+        }
+
+        void emit(std::string event_name, const SockData& data)
         {
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
-        };
+        }
 
-        bool getDestroy() const override
+        bool getDestroy() const
         {
             return _inter->getDestroy();
-        };
+        }
 
         void start()
         {
@@ -626,18 +623,18 @@ namespace NylonSock
             _stop_thread = false;
 
             _thread = std::make_unique<std::thread>(&Client<T>::update, this);
-        };
+        }
 
         void stop()
         {
             _stop_thread = true;
             _thread->join();
-        };
+        }
 
         bool status() const
         {
             return !_stop_thread.load();
-        };
+        }
 
         T& get()
         {

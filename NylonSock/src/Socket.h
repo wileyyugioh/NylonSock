@@ -78,13 +78,13 @@ namespace NylonSock
     class SOCK_CLOSED : public Error
     {
     public:
-        SOCK_CLOSED(std::string what) : Error(what) {};
+        SOCK_CLOSED(std::string what) : Error(what) {}
     };
     
     class PEER_RESET : public Error
     {
     public:
-        PEER_RESET(std::string what) : Error(what) {};
+        PEER_RESET(std::string what) : Error(what) {}
     };
     
     class Socket
