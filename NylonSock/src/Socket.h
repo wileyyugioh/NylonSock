@@ -71,20 +71,20 @@ namespace NylonSock
     class Error : public std::runtime_error
     {
     public:
-        Error(std::string what);
-        Error(std::string what, bool null);
+        Error(const std::string& what);
+        Error(const std::string& what, bool null);
     };
 
     class SOCK_CLOSED : public Error
     {
     public:
-        SOCK_CLOSED(std::string what) : Error(what) {}
+        SOCK_CLOSED(const std::string& what) : Error(what) {}
     };
     
     class PEER_RESET : public Error
     {
     public:
-        PEER_RESET(std::string what) : Error(what) {}
+        PEER_RESET(const std::string& what) : Error(what) {}
     };
     
     class Socket
@@ -100,7 +100,7 @@ namespace NylonSock
         NSHelper _the_help{};
     public:
         Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect = false);
-        Socket(std::string node, std::string service, const addrinfo* hints, bool autoconnect = false);
+        Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect = false);
         Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
         Socket() = default;

@@ -61,13 +61,13 @@ namespace NylonSock
     class TOO_BIG : public NylonSock::Error
     {
     public:
-        TOO_BIG(std::string what): Error(what) {}
+        TOO_BIG(const std::string& what): Error(what) {}
     };
 
     class FAILED_CONVERT : public NylonSock::Error
     {
     public:
-        FAILED_CONVERT(std::string what) : Error(what) {}
+        FAILED_CONVERT(const std::string& what) : Error(what) {}
     };
     
     class SockData
@@ -126,7 +126,7 @@ namespace NylonSock
         }
     };
 
-    void emitSend(std::string event_name, const SockData& data, Socket& socket)
+    void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
     {
         //sends data to server/client
 
@@ -161,9 +161,9 @@ namespace NylonSock
         T& impl() {return *static_cast<T*>(this);}
     public:
         virtual ~ClientInterface() = default;
-        void on(std::string event_name, SockFunc<T> func) {impl().on(event_name, func);}
-        void on(std::string event_name, NoFunc func) {impl().on(event_name, func);}
-        void emit(std::string event_name, const SockData& data) {impl().emit(event_name, data);}
+        void on(const std::string& event_name, SockFunc<T> func) {impl().on(event_name, func);}
+        void on(const std::string& event_name, NoFunc func) {impl().on(event_name, func);}
+        void emit(const std::string& event_name, const SockData& data) {impl().emit(event_name, data);}
         bool getDestroy() const {impl().getDestroy();}
         
     };
@@ -175,7 +175,7 @@ namespace NylonSock
         class CLOSE : public std::runtime_error
         {
         public:
-            CLOSE(std::string err) : std::runtime_error(err) {}
+            CLOSE(const std::string& err) : std::runtime_error(err) {}
         };
 
     protected:
@@ -205,7 +205,7 @@ namespace NylonSock
                 return output;
             };
 
-            auto castback = [](std::string str)
+            auto castback = [](const std::string& str)
             {
                 sock_size_type data;
 
@@ -260,7 +260,7 @@ namespace NylonSock
             return NylonSock::SUCCESS;
         }
 
-        void eventCall(std::string eventstr, SockData data, T& tclass)
+        void eventCall(const std::string& eventstr, SockData data, T& tclass)
         {
             //if the event is in the functions
             auto efind = _functions.find(eventstr);
@@ -273,7 +273,7 @@ namespace NylonSock
             //else, the data gets thrown away
         }
 
-        void eventCall(std::string eventstr)
+        void eventCall(const std::string& eventstr)
         {
             //if the event is in the functions
             auto efind = _nofunctions.find(eventstr);
@@ -290,17 +290,17 @@ namespace NylonSock
             _client = std::make_unique<Socket>(sock);
         }
 
-        void on(std::string event_name, SockFunc<T> func)
+        void on(const std::string& event_name, SockFunc<T> func)
         {
             _functions[event_name] = func;
         }
 
-        void on(std::string event_name, NoFunc func)
+        void on(const std::string& event_name, NoFunc func)
         {
             _nofunctions[event_name] = func;
         }
 
-        void emit(std::string event_name, const SockData& data)
+        void emit(const std::string& event_name, const SockData& data)
         {
             //sends data to client
             emitSend(event_name, data, *_client);
@@ -360,7 +360,7 @@ namespace NylonSock
         ServClientFunc _func;
         std::mutex _clsz_rw;
 
-        void createServer(std::string port)
+        void createServer(const std::string& port)
         {
             addrinfo hints = {0};
             //force server to be ipv6
@@ -435,7 +435,7 @@ namespace NylonSock
         }
 
     public:
-        Server(std::string port)
+        Server(const std::string& port)
         {
             createServer(port);
 
@@ -465,7 +465,7 @@ namespace NylonSock
             _func = func;
         }
         
-        void emit(std::string event_name, SockData data)
+        void emit(const std::string& event_name, SockData data)
         {
             std::lock_guard<std::mutex> lock {_clsz_rw};
             for(auto& it : _clients)
@@ -525,7 +525,7 @@ namespace NylonSock
         std::atomic<bool> _stop_thread{true};
         std::unique_ptr<std::thread> _thread;
         
-        void createListener(std::string ip, std::string port)
+        void createListener(const std::string& ip, const std::string& port)
         {
             addrinfo hints = {0};
             hints.ai_family = AF_UNSPEC;
@@ -555,13 +555,13 @@ namespace NylonSock
         }
 
     public:
-        Client(std::string ip, std::string port)
+        Client(const std::string& ip, const std::string& port)
         {
              createListener(ip, port);
             _inter = std::make_unique<T>(*_server);
         }
 
-        Client(std::string ip, int port) : Client(ip, std::to_string(port) ) {}
+        Client(const std::string& ip, int port) : Client(ip, std::to_string(port) ) {}
 
         ~Client()
         {
@@ -577,17 +577,17 @@ namespace NylonSock
 
         Client& operator=(Client&& that) = delete;
 
-        void on(std::string event_name, SockFunc<T> func)
+        void on(const std::string& event_name, SockFunc<T> func)
         {
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         }
 
-        void on(std::string event_name, NoFunc func)
+        void on(const std::string& event_name, NoFunc func)
         {
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         }
 
-        void emit(std::string event_name, const SockData& data)
+        void emit(const std::string& event_name, const SockData& data)
         {
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
         }
