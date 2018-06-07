@@ -395,7 +395,7 @@ namespace NylonSock
             setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );
             
             //and rebind
-            success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
+            ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
         }
         
         //clears addrinfo

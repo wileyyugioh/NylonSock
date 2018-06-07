@@ -124,15 +124,16 @@ The emit function takes in a string EventName and a SockData class for the secon
 
 ```
     client.emit("greetings", {"Hello World!"});
+    server.emit("this is sent", {"to all clients!"});
 ```
 
 ## *.start()
 
-Only for Client class and Server Class. Starts the server's updating functions for receiving any data.
+Only for Client class and Server Class. Starts the socket's main thread for receiving any data.
 
 ## *.stop()
 
-Only for Client class and Server Class. Stops the updating function. Automatically called upon destruction.
+Only for Client class and Server Class. Stops the thread. Automatically called upon destruction.
 
 ## Client Class
 
@@ -213,6 +214,10 @@ server.onConnect([](TestClientSocket& sock)
 
 });
 ```
+
+void emit(std::string event_name, SockData data):
+
+Sends data under event_name to ALL clients
 
 void start()
 

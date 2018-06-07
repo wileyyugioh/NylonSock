@@ -1,10 +1,15 @@
 cmake_minimum_required (VERSION 2.8)
 project (nylonsock)
 
-# set(CMAKE_BUILD_TYPE Debug)
-
+option(BUILD_DEBUG "Builds using debug mode" OFF)
 option(BUILD_TESTS "Build test programs" ON)
 option(BUILD_STATIC "Builds a static library if enabled. Otherwise builds a shared library" OFF)
+
+IF (BUILD_DEBUG)
+set(CMAKE_BUILD_TYPE Debug)
+ENDIF (BUILD_DEBUG)
+
+
 
 IF (NOT WIN32)
 set(INCLUDE_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME})

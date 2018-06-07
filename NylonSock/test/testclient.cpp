@@ -16,11 +16,9 @@ class InClient : public NylonSock::ClientSocket<InClient>
 {
 private:
 public:
-    InClient(NylonSock::Socket sock) : ClientSocket(sock)
-    {
-    }
+    std::string usrname;
 
-    std::string usrname, msg;
+    InClient(NylonSock::Socket sock) : ClientSocket(sock) {}
 };
 
 int main(int argc, const char * argv[])
@@ -53,10 +51,10 @@ int main(int argc, const char * argv[])
     std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
     while(client.status() )
     {
-        std::getline(std::cin, client.get().msg);
-
-        client.emit("msgGet", {client.get().msg});
+        std::string msg;
+        std::getline(std::cin, msg);
+        client.emit("msgGet", {msg});
     }
-
     client.stop();
+    std::cout << "Disconnected from server." << std::endl;
 }

@@ -15,11 +15,9 @@
 class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 {
 public:
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock)
-    {
-    }
-
     std::string usrname;
+
+    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock) {}
 };
 
 int main(int argc, const char * argv[])
@@ -56,7 +54,9 @@ int main(int argc, const char * argv[])
     serv.start();
     while(true)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000) );
+        std::string msg;
+        std::getline(std::cin, msg);
+        serv.emit("msgSend", "SERVER: " + msg);
     }
 
 	//It never reaches here, does it...

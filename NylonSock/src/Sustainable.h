@@ -32,7 +32,7 @@
  
  bytes are assumed to be 8 bits
  
- Beginning is uint16_t of size in bytes
+ Beginning is uint16_t of content size in bytes
  Next is uint16_t of event name size in bytes
  Next is name
  Rest is data.
@@ -57,19 +57,6 @@ namespace NylonSock
     using SockFunc = std::function<void(SockData, Self&)>;
 
     using NoFunc = std::function<void()>;
-    
-    //used for getting num of digits in a number
-    template <unsigned long long N, size_t base=10>
-    struct numberlength
-    {
-        enum {value = 1 + numberlength<N/base, base>::value};            
-    };
-
-    template <size_t base>
-    struct numberlength<0, base>
-    {
-        enum {value = 0};
-    };
     
     class TOO_BIG : public NylonSock::Error
     {
@@ -180,7 +167,7 @@ namespace NylonSock
         bool getDestroy() const {impl().getDestroy();}
         
     };
-    
+
     template<class T>
     class ClientSocket : public ClientInterface<T>
     {
@@ -406,7 +393,7 @@ namespace NylonSock
             //sets[0] is an FD_Set of the sockets ready to be accepted
             auto sets = select(*_fdset, TimeVal{100});
                 
-            if (sets[0].size() != 0)
+            if (sets[0].size() > 0)
             {
                 auto new_sock = accept(*_server);
                     
@@ -442,10 +429,7 @@ namespace NylonSock
         {
             while(true)
             {
-                if(_stop_thread.load() )
-                {
-                    break;
-                }
+                if(_stop_thread.load() ) break;
                 update();
             }
         }
@@ -462,7 +446,11 @@ namespace NylonSock
         
         Server(int port) : Server(std::to_string(port) ) {}
 
-        ~Server() {stop();}
+        ~Server()
+        {
+            stop();
+            _thread->join();
+        }
         
         Server(const Server& that) = delete;
 
@@ -495,10 +483,7 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(!_stop_thread.load() )
-            {
-                return;
-            }
+            if(!_stop_thread.load() ) return;
 
             _stop_thread = false;
 
@@ -508,7 +493,6 @@ namespace NylonSock
         void stop()
         {
             _stop_thread = true;
-            _thread->join();
         }
 
         bool status() const
@@ -582,6 +566,7 @@ namespace NylonSock
         ~Client()
         {
             stop();
+            _thread->join();
         }
 
         Client(const Client& that) = delete;
@@ -628,7 +613,6 @@ namespace NylonSock
         void stop()
         {
             _stop_thread = true;
-            _thread->join();
         }
 
         bool status() const
