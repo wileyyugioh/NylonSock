@@ -743,8 +743,6 @@ namespace NylonSock
         return select(set, timeout.get() );
     }
     
-    
-    
     TimeVal::TimeVal(unsigned int milli)
     {
         //find seconds

@@ -20,9 +20,8 @@ public:
     InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
-	
     if(argc == 1)
     {
         std::cout << "First argument is the ip to connect to" << std::endl;
@@ -57,4 +56,6 @@ int main(int argc, const char * argv[])
     }
     client.stop();
     std::cout << "Disconnected from server." << std::endl;
+
+    return 0;
 }

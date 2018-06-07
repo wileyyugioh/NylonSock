@@ -20,7 +20,7 @@ public:
     TestClientSock(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
 	using namespace NylonSock;
 
@@ -69,5 +69,7 @@ int main(int argc, const char * argv[])
 
 	//It never reaches here, does it...
     serv.stop();
+
+    return 0;
 }
 

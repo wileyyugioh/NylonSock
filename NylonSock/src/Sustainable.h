@@ -308,7 +308,7 @@ namespace NylonSock
             return _destroy_flag;
         }
 
-        void update(bool nonblock)
+        void update(unsigned int timeout)
         {
             try
             {
@@ -320,10 +320,7 @@ namespace NylonSock
                 }
 
                 //see if we can recv
-                if(nonblock && select(*_self_fd, TimeVal{1000})[0].size() <= 0)
-                {
-                    return;
-                }
+                if(select(*_self_fd, TimeVal{timeout})[0].size() <= 0) return;
                 char success = recvData(*_client);
                 if(success == NylonSock::SUCCESS) return;
             }
@@ -411,7 +408,8 @@ namespace NylonSock
                 auto sock = (*it).get();
                 if(!sock->getDestroy())
                 {
-                    sock->update(true);
+                    constexpr unsigned int timeout = 0;
+                    sock->update(timeout);
                     ++it;
                     continue;
                 }
@@ -543,8 +541,8 @@ namespace NylonSock
             while(true)
             {
                 if(_stop_thread.load() || _inter->getDestroy() ) break;
-                
-                _inter->update(false);
+                constexpr unsigned int timeout = 250;
+                _inter->update(timeout);
             }
         }
 
@@ -593,10 +591,7 @@ namespace NylonSock
         void start()
         {
             //Prevents making too many threads
-            if(!_stop_thread.load() )
-            {
-                return;
-            }
+            if(!_stop_thread.load() ) return;
 
             _stop_thread = false;
 
