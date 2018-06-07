@@ -248,9 +248,6 @@ namespace NylonSock
         
         AddrWrapper()
         {
-            //pray this gets freed
-            //have to use malloc because this is a c library?
-            _info = (addrinfo*)(malloc(sizeof(addrinfo) ) );
             _orig = _info;
             _man = true;
         }
@@ -260,12 +257,6 @@ namespace NylonSock
             if(_man == false)
             {
                 ::freeaddrinfo(_orig);
-                _info = nullptr;
-                _orig = nullptr;
-            }
-            else
-            {
-                free(_orig);
                 _info = nullptr;
                 _orig = nullptr;
             }
@@ -300,10 +291,10 @@ namespace NylonSock
     
     Socket::Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect)
     {
-        _info = std::make_shared<AddrWrapper>(node, service, hints);
+        _info = std::make_unique<AddrWrapper>(node, service, hints);
         
         //socket creation
-        _sw = std::make_shared<SocketWrapper>(*_info->get(), autoconnect);
+        _sw = std::make_unique<SocketWrapper>(*_info->get(), autoconnect);
     }
     
     Socket::Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect) : 
@@ -318,7 +309,7 @@ namespace NylonSock
         //no addr_info because screw you
         
         //sets socket
-        _sw = std::make_shared<SocketWrapper>(port);
+        _sw = std::make_unique<SocketWrapper>(port);
         
     }
     
@@ -327,23 +318,18 @@ namespace NylonSock
         //this is for storing data!
         //yay!
         //gotta allocate that memory yo
-        _info = std::make_shared<AddrWrapper>();
+        _info = std::make_unique<AddrWrapper>();
         
         //sets socket
-        _sw = std::make_shared<SocketWrapper>(port);
-        
-        _info->get()->ai_family = data->ss_family;
-        
-        //copies that data
-        //I PRAY that freeaddrinfo deletes this malloc!
-        //using malloc instead of new because socket is c
-        _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-        *_info->get()->ai_addr = *(sockaddr*)data;
-        
-        //not needed?
-        //_info->get()->ai_addrlen = sizeof(data->ss_len);
+        _sw = std::make_unique<SocketWrapper>(port);
     }
-    
+
+    Socket::Socket(Socket&& that) : _info(move(that._info)), _sw(move(that._sw)) {}
+
+    Socket::Socket() = default;
+
+    Socket::~Socket() = default;
+
     const addrinfo* Socket::operator->() const
     {
         //returns socket info

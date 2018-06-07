@@ -37,11 +37,11 @@ serv.start();
 Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 
 ```
-    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
-    {
-        public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock) {}
-    }
+class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+{
+    public:
+        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+}
 ```
 
 What the code above does is sends the message “ok” under the event name "Hallo" when a client connects.
@@ -49,19 +49,19 @@ What the code above does is sends the message “ok” under the event name "Hal
 Clients use the same format as servers.
 
 ```
-    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+{
+    public:
+        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+}
+
+NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
+client.on("hallo", [](SockData data, CLIENTSOCK& ps)
     {
-        public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock) {}
-    }
+        std::cout << data.getRaw() << std::endl;
+    });
 
-    NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
-    client.on("hallo", [](SockData data, CLIENTSOCK& ps)
-        {
-            std::cout << data.getRaw() << std::endl;
-        });
-
-    client.start();
+client.start();
 ```
 
 When a client receives the hallo event from a server, it will print out “ok.”
@@ -149,7 +149,7 @@ Constructor:
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {}
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
 };
 
 NylonSock::Client<CustomClient> client {IP_ADDRESS, PORT_NUM};
@@ -185,7 +185,7 @@ Takes in a ClientSocket as a template.
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {};
 };
 
 NylonSock::Server<CustomClient> server {PORT_NUM};
@@ -235,7 +235,7 @@ All ClientSockets are stored in a vector in the Server class. You can access a p
 
 Constructor:
 
-Takes in a NylonSock::Socket as an argument.
+Takes in a NylonSock::Socket&& as an argument.
 
 The template takes in a ClientSocket class or any inherited class.
 
@@ -245,7 +245,7 @@ Please use CRTP.
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {}
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 ```
 

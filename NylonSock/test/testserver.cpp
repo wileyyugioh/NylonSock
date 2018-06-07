@@ -17,7 +17,7 @@ class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 public:
     std::string usrname;
 
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock) {}
+    TestClientSock(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
 int main(int argc, const char * argv[])

@@ -14,11 +14,10 @@
 
 class InClient : public NylonSock::ClientSocket<InClient>
 {
-private:
 public:
     std::string usrname;
 
-    InClient(NylonSock::Socket sock) : ClientSocket(sock) {}
+    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
 int main(int argc, const char * argv[])

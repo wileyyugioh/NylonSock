@@ -285,10 +285,7 @@ namespace NylonSock
         }
 
     public:
-        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) ), _destroy_flag(false)
-        {
-            _client = std::make_unique<Socket>(sock);
-        }
+        ClientSocket(Socket&& sock) : _client(std::make_unique<Socket>(std::move(sock))), top_class(static_cast<T*>(this) ), _destroy_flag(false) {}
 
         void on(const std::string& event_name, SockFunc<T> func)
         {
@@ -398,8 +395,9 @@ namespace NylonSock
                 auto new_sock = accept(*_server);
                     
                 _clsz_rw.lock();
+
                 //it is an actual socket
-                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+                _clients.push_back(std::make_unique<UsrSock>(std::move(new_sock) ) );
 
                 _clsz_rw.unlock();
                     
@@ -451,7 +449,7 @@ namespace NylonSock
             stop();
             _thread->join();
         }
-        
+
         Server(const Server& that) = delete;
 
         Server& operator=(const Server& that) = delete;
@@ -517,21 +515,19 @@ namespace NylonSock
     {
     private:
         //see top of cpp file to see how data is sent
-        std::unique_ptr<Socket> _server;
-        
         //client socket has similar interface
         std::unique_ptr<T> _inter;
 
         std::atomic<bool> _stop_thread{true};
         std::unique_ptr<std::thread> _thread;
         
-        void createListener(const std::string& ip, const std::string& port)
+        static Socket createListener(const std::string& ip, const std::string& port)
         {
             addrinfo hints = {0};
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
             
-            _server = std::make_unique<Socket>(ip, port, &hints, true);
+            return {ip, port, &hints, true};
         }
 
         void update()
@@ -557,8 +553,7 @@ namespace NylonSock
     public:
         Client(const std::string& ip, const std::string& port)
         {
-             createListener(ip, port);
-            _inter = std::make_unique<T>(*_server);
+            _inter = std::make_unique<T>(createListener(ip, port));
         }
 
         Client(const std::string& ip, int port) : Client(ip, std::to_string(port) ) {}
