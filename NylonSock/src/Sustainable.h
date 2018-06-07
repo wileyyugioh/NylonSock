@@ -104,10 +104,7 @@ namespace NylonSock
             initializeByString(result);
         }
 
-        std::string getRaw() const
-        {
-            return raw_data;
-        }
+        std::string getRaw() const {return raw_data;}
 
         template<typename T>
         operator T()
@@ -120,10 +117,8 @@ namespace NylonSock
             return result;
         }
 
-        operator std::string()
-        {
-            return getRaw();
-        }
+        operator std::string() {return getRaw();}
+
     };
 
     void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
@@ -269,7 +264,7 @@ namespace NylonSock
                 //call it
                 (efind->second)(data, tclass);
             }
-            
+
             //else, the data gets thrown away
         }
 
@@ -303,10 +298,7 @@ namespace NylonSock
             emitSend(event_name, data, *_client);
         }
 
-        bool getDestroy() const
-        {
-            return _destroy_flag;
-        }
+        bool getDestroy() const {return _destroy_flag;}
 
         void update(unsigned int timeout)
         {
@@ -346,7 +338,7 @@ namespace NylonSock
     {
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
-        std::atomic<bool> _stop_thread{true};
+        std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
         std::unique_ptr<FD_Set> _fdset;
         std::unique_ptr<Socket> _server;
@@ -429,7 +421,7 @@ namespace NylonSock
         }
 
     public:
-        Server(const std::string& port)
+        Server(const std::string& port) : _stop_thread(true)
         {
             createServer(port);
 
@@ -454,10 +446,7 @@ namespace NylonSock
 
         Server& operator=(Server&& that) = delete;
        
-        void onConnect(ServClientFunc func)
-        {
-            _func = func;
-        }
+        void onConnect(ServClientFunc func) {_func = func;}
         
         void emit(const std::string& event_name, SockData data)
         {
@@ -484,15 +473,9 @@ namespace NylonSock
             _thread = std::make_unique<std::thread>(&Server::thr_update, this);
         }
 
-        void stop()
-        {
-            _stop_thread = true;
-        }
+        void stop() {_stop_thread = true;}
 
-        bool status() const
-        {
-            return !_stop_thread.load();
-        }
+        bool status() const {return !_stop_thread.load();}
 
         UsrSock& getUsrSock(unsigned int pos)
         {
@@ -514,7 +497,7 @@ namespace NylonSock
         //client socket has similar interface
         std::unique_ptr<T> _inter;
 
-        std::atomic<bool> _stop_thread{true};
+        std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
         
         static Socket createListener(const std::string& ip, const std::string& port)
@@ -547,7 +530,7 @@ namespace NylonSock
         }
 
     public:
-        Client(const std::string& ip, const std::string& port)
+        Client(const std::string& ip, const std::string& port) : _stop_thread(true)
         {
             _inter = std::make_unique<T>(createListener(ip, port));
         }
@@ -583,10 +566,7 @@ namespace NylonSock
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
         }
 
-        bool getDestroy() const
-        {
-            return _inter->getDestroy();
-        }
+        bool getDestroy() const {return _inter->getDestroy();}
 
         void start()
         {
@@ -598,20 +578,11 @@ namespace NylonSock
             _thread = std::make_unique<std::thread>(&Client<T>::update, this);
         }
 
-        void stop()
-        {
-            _stop_thread = true;
-        }
+        void stop() {_stop_thread = true;}
 
-        bool status() const
-        {
-            return !_stop_thread.load();
-        }
+        bool status() const {return !_stop_thread.load();}
 
-        T& get()
-        {
-            return *_inter;
-        }
+        T& get() {return *_inter;}
 
     };
 }
