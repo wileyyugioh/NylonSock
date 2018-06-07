@@ -55,10 +55,13 @@ int main(int argc, const char * argv[])
 	});
 	
     serv.start();
+
+    std::cout << "Entering text sending mode.\nEnter \\q to quit the client." << std::endl;
     while(true)
     {
         std::string msg;
         std::getline(std::cin, msg);
+        if(msg == "\\q") break;
         msg = "SERVER: " + msg;
         std::cout << msg << std::endl;
         serv.emit("msgSend", msg);

@@ -47,11 +47,12 @@ int main(int argc, const char * argv[])
         std::cout << data.getRaw() << std::endl;
     });
 
-    std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
+    std::cout << "Entering text sending mode.\nEnter \\q to quit the client." << std::endl;
     while(client.status() )
     {
         std::string msg;
         std::getline(std::cin, msg);
+        if(msg == "\\q") break;
         client.emit("msgGet", {msg});
     }
     client.stop();
