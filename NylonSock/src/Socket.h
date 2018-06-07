@@ -35,11 +35,13 @@ enum PortBlockers
 #include <netdb.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#include <sys/poll.h>
 
 typedef int SOCKET;
 #endif
 
 #include <cmath>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -202,7 +204,28 @@ namespace NylonSock
     void setsockopt(const Socket& sock, int level, int optname, const void *optval, socklen_t optlen);
     
     std::string inet_ntop(const Socket& sock);
-    
+
+    class PollFDs
+    {
+    public:
+        enum Events
+        {
+            NSPOLLIN, NSPOLLOUT, NSPOLLPRI, NSPOLLERR, NSPOLLHUP, NSPOLLINVAL
+        };
+    private:
+        std::vector<pollfd> _pfs;
+        static short map_event(const Events& event);
+        pollfd& get_element(Socket* sock);
+    public:
+        void add_event(Socket* sock, const Events& event);
+        bool get_event(Socket* sock, const Events& event);
+        void clear();
+
+        pollfd* get() {return &_pfs[0];}
+        unsigned int size() const {return _pfs.size();}
+    };
+
+    int poll(PollFDs& pollfds, unsigned int timeout);
 }
 
 #endif /* defined(__NylonSock__Socket__) */

@@ -14,6 +14,7 @@
 constexpr int SHUT_RD = SD_RECEIVE;
 constexpr int SHUT_WR = SD_SEND;
 constexpr int SHUT_RDWR = SD_BOTH;
+
 constexpr int NSCONNRESET = WSAECONNRESET;
 constexpr int NSWOULDBLOCK = WSAEWOULDBLOCK;
 
@@ -742,7 +743,7 @@ namespace NylonSock
     {
         return select(set, timeout.get() );
     }
-    
+
     TimeVal::TimeVal(unsigned int milli)
     {
         //find seconds
@@ -786,5 +787,63 @@ namespace NylonSock
         }
         
         return {data};
+    }
+
+    short PollFDs::map_event(const Events& event)
+    {
+        switch(event)
+        {
+            case Events::NSPOLLIN: return POLLIN;
+            case Events::NSPOLLOUT: return POLLOUT;
+            case Events::NSPOLLPRI: return POLLPRI;
+            case Events::NSPOLLERR: return POLLERR;
+            case Events::NSPOLLHUP: return POLLHUP;
+            case Events::NSPOLLINVAL: return POLLNVAL;
+            default: throw Error("Invalid PollFDs Event");
+        }
+    }
+
+    pollfd& PollFDs::get_element(Socket* sock)
+    {
+        auto port = sock->port();
+        auto pfit = std::find_if(_pfs.begin(), _pfs.end(), [&port](const pollfd& obj)
+        {
+            return obj.fd == port;
+        });
+        if(pfit == _pfs.end())
+        {
+            _pfs.push_back({port, 0, 0});
+            return _pfs.back();
+        }
+
+        return *pfit;
+    }
+
+    void PollFDs::add_event(Socket* sock, const PollFDs::Events& event)
+    {
+        auto& element = get_element(sock);
+        element.events = element.events | map_event(event);
+    }
+
+    void PollFDs::clear() {_pfs.clear();}
+
+    bool PollFDs::get_event(Socket* sock, const PollFDs::Events& event)
+    {
+        return (get_element(sock).events & map_event(event) );
+    }
+
+    int poll(PollFDs& pollfds, unsigned int timeout)
+    {
+#ifdef PLAT_WIN
+        char success = ::WSAPoll(pollfds.get(), pollfds.size(), timeout);
+#elif defined(UNIX_HEADER)
+        char success = ::poll(pollfds.get(), pollfds.size(), timeout);
+#endif
+        if(success == SOCKET_ERROR)
+        {
+            throw Error("Failed to poll ports");
+        }
+
+        return success;
     }
 }

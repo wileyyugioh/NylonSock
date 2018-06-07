@@ -177,7 +177,7 @@ namespace NylonSock
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
         std::unordered_map<std::string, NoFunc> _nofunctions;
-        std::unique_ptr<FD_Set> _self_fd;
+        std::unique_ptr<PollFDs> _self_ps;
         T* top_class;
         
         bool _destroy_flag;
@@ -305,14 +305,14 @@ namespace NylonSock
             try
             {
                 //lazy initialization
-                if(_self_fd == nullptr)
+                if(_self_ps == nullptr)
                 {
-                    _self_fd = std::make_unique<FD_Set>();
-                    _self_fd->set(*_client);
+                    _self_ps = std::make_unique<PollFDs>();
+                    _self_ps->add_event(_client.get(), PollFDs::Events::NSPOLLIN);
                 }
 
                 //see if we can recv
-                if(select(*_self_fd, TimeVal{timeout})[0].size() <= 0) return;
+                if(poll(*_self_ps, timeout) == 0) return;
                 char success = recvData(*_client);
                 if(success == NylonSock::SUCCESS) return;
             }
@@ -322,7 +322,7 @@ namespace NylonSock
 
             _client = nullptr;
             _functions.clear();
-            _self_fd = nullptr;
+            _self_ps = nullptr;
             
             _destroy_flag = true;
         }
@@ -340,7 +340,7 @@ namespace NylonSock
         using ServClientFunc = std::function<void (UsrSock&)>;
         std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
-        std::unique_ptr<FD_Set> _fdset;
+        std::unique_ptr<PollFDs> _pollset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
         ServClientFunc _func;
@@ -374,10 +374,8 @@ namespace NylonSock
         void update()
         {
             //this is all accepting new clients
-            //sets[0] is an FD_Set of the sockets ready to be accepted
-            auto sets = select(*_fdset, TimeVal{100});
-                
-            if (sets[0].size() > 0)
+            int count = poll(*_pollset, 100);
+            if (count > 0)
             {
                 auto new_sock = accept(*_server);
                     
@@ -425,9 +423,8 @@ namespace NylonSock
         {
             createServer(port);
 
-            // create fdset
-            _fdset = std::make_unique<FD_Set>();
-            _fdset->set(*_server);
+            _pollset = std::make_unique<PollFDs>();
+            _pollset->add_event(_server.get(), PollFDs::Events::NSPOLLIN);
         }
         
         Server(int port) : Server(std::to_string(port) ) {}
