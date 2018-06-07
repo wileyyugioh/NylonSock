@@ -371,16 +371,14 @@ namespace NylonSock
 			
 #ifdef PLAT_WIN
 			//needed because windows ipv6 doesn't accept ipv4
-			const int n = 0;
+			constexpr int n = 0;
 			setsockopt(*_server, IPPROTO_IPV6, IPV6_V6ONLY, &n, sizeof(n) );
 #endif
-
             fcntl(*_server, O_NONBLOCK);
             
             bind(*_server);
             
             constexpr int backlog = 100;
-            
             listen(*_server, backlog);
         }
 

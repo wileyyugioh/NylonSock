@@ -371,7 +371,7 @@ namespace NylonSock
     {
         
         //true
-        const int y = 1;
+        constexpr int y = 1;
         
         //binds socket to port
         char success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
