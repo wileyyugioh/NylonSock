@@ -46,8 +46,11 @@ int main(int argc, const char * argv[])
 
         sock.on("disconnect", [&]()
         {
-            std::cout << sock.usrname + " left the server." << std::endl;
-            serv.emit("msgSend", {sock.usrname + " left the server."});
+            if(!sock.usrname.empty())
+            {
+                std::cout << sock.usrname + " left the server." << std::endl;
+                serv.emit("msgSend", {sock.usrname + " left the server."});
+            }
         });
 	});
 	
@@ -56,7 +59,9 @@ int main(int argc, const char * argv[])
     {
         std::string msg;
         std::getline(std::cin, msg);
-        serv.emit("msgSend", "SERVER: " + msg);
+        msg = "SERVER: " + msg;
+        std::cout << msg << std::endl;
+        serv.emit("msgSend", msg);
     }
 
 	//It never reaches here, does it...

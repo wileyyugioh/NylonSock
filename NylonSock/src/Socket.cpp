@@ -135,12 +135,12 @@ namespace NylonSock
         return wrap.get();
     }
 
-    Error::Error(std::string what) : std::runtime_error(what + ": " + translateError() ) {}
+    Error::Error(const std::string& what) : std::runtime_error(what + ": " + translateError() ) {}
 #elif defined(UNIX_HEADER)
-    Error::Error(std::string what) : std::runtime_error(what + ": " + strerror(errno) ) {}
+    Error::Error(const std::string& what) : std::runtime_error(what + ": " + strerror(errno) ) {}
 #endif
     
-    Error::Error(std::string what, bool null) : std::runtime_error(what) {}
+    Error::Error(const std::string& what, bool null) : std::runtime_error(what) {}
     
     //needs to be in shared ptr
     class Socket::SocketWrapper
@@ -306,7 +306,7 @@ namespace NylonSock
         _sw = std::make_shared<SocketWrapper>(*_info->get(), autoconnect);
     }
     
-    Socket::Socket(std::string node, std::string service, const addrinfo* hints, bool autoconnect) : 
+    Socket::Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect) : 
         Socket(node.c_str(), service.c_str(), hints, autoconnect)
     {
         
