@@ -318,13 +318,13 @@ namespace NylonSock
             }
             catch (NylonSock::Error& e) {}
 
+            _destroy_flag = true;
+
             eventCall("disconnect");
 
             _client = nullptr;
             _functions.clear();
             _self_ps = nullptr;
-            
-            _destroy_flag = true;
         }
 
     };
@@ -450,7 +450,7 @@ namespace NylonSock
             std::lock_guard<std::mutex> lock {_clsz_rw};
             for(auto& it : _clients)
             {
-                it->emit(event_name, data);
+                if(!it->getDestroy() ) it->emit(event_name, data);
             }
         }
 
