@@ -17,10 +17,10 @@ class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
 public:
     std::string usrname;
 
-    TestClientSock(NylonSock::Socket sock) : ClientSocket(sock) {}
+    TestClientSock(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
 	using namespace NylonSock;
 
@@ -55,10 +55,13 @@ int main(int argc, const char * argv[])
 	});
 	
     serv.start();
+
+    std::cout << "Entering text sending mode.\nEnter \\q to quit the client." << std::endl;
     while(true)
     {
         std::string msg;
         std::getline(std::cin, msg);
+        if(msg == "\\q") break;
         msg = "SERVER: " + msg;
         std::cout << msg << std::endl;
         serv.emit("msgSend", msg);
@@ -66,5 +69,7 @@ int main(int argc, const char * argv[])
 
 	//It never reaches here, does it...
     serv.stop();
+
+    return 0;
 }
 

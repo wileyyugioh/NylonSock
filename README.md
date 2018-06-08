@@ -37,11 +37,11 @@ serv.start();
 Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 
 ```
-    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
-    {
-        public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock) {};
-    }
+class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+{
+    public:
+        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+}
 ```
 
 What the code above does is sends the message “ok” under the event name "Hallo" when a client connects.
@@ -49,21 +49,19 @@ What the code above does is sends the message “ok” under the event name "Hal
 Clients use the same format as servers.
 
 ```
-    class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
+{
+    public:
+        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+}
+
+NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
+client.on("hallo", [](SockData data, CLIENTSOCK& ps)
     {
-        public:
-            CLIENTSOCK(NylonSock::Socket sock) : ClientSocket(sock)
-            {
-            }
-    }
+        std::cout << data.getRaw() << std::endl;
+    });
 
-    NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
-    client.on("hallo", [](SockData data, CLIENTSOCK& ps)
-        {
-            std::cout << data.getRaw() << std::endl;
-        });
-
-    client.start();
+client.start();
 ```
 
 When a client receives the hallo event from a server, it will print out “ok.”
@@ -84,11 +82,11 @@ or
 
 The Client class and the ClientSocket class have the same functions.
 
-## *.on(EventName, Func);
+## \*.on(EventName, Func);
 
 The on function takes in a string EventName for the event to act upon and a function Func, which is void and takes in a SockData for the first parameter and for the second a reference to the class that is calling it, be it a ClientSocket, a Client, or anything inherited from it.
 
-An example function to pass to *.on is this:
+An example function to pass to \*.on is this:
 
 ```
 void myfunc(SockData data, MYCUSTOMCLIENTSOCKETCLASS& mccsc)
@@ -118,22 +116,22 @@ client.on("disconnect", []()
 });
 ```
 
-## *.emit(EventName, Data);
+## \*.emit(EventName, Data);
 
 The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
 
 ```
-    client.emit("greetings", {"Hello World!"});
-    server.emit("this is sent", {"to all clients!"});
+client.emit("greetings", {"Hello World!"});
+server.emit("this is sent", {"to all clients!"});
 ```
 
-## *.start()
+## \*.start()
 
-Only for Client class and Server Class. Starts the socket's main thread for receiving any data.
+Only for Client class and Server Class. Starts the socket's main thread to receive data.
 
-## *.stop()
+## \*.stop()
 
-Only for Client class and Server Class. Stops the thread. Automatically called upon destruction.
+Only for Client class and Server Class. Stops the socket's main thread. Automatically called upon destruction.
 
 ## Client Class
 
@@ -143,13 +141,15 @@ On destruction, stop is automatically called.
 
 Constructor:
 
-Takes in a string for the address to connect to for the first argument, and for the second takes in an int for the port to listen to.
+**Client(const std::string& ip, int port)**
+
+**Client(const std::string& ip, const std::string& port)**
 
 ```
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
 };
 
 NylonSock::Client<CustomClient> client {IP_ADDRESS, PORT_NUM};
@@ -157,23 +157,23 @@ NylonSock::Client<CustomClient> client {IP_ADDRESS, PORT_NUM};
 
 ### Functions
 
-void on(std::string msgstr, NylonSock::SockFunc func)
+**void on(std::string msgstr, NylonSock::SockFunc func)**
 
-void emit(std::string msgstr, NylonSock::SockData data)
+**void emit(std::string msgstr, NylonSock::SockData data)**
 
-bool getDestroy():
+**bool getDestroy():**
 
 When a client disconnects from a server, its socket is destroyed. This can be used to check if the client's socket is destroyed.
 
-void start()
+**void start()**
 
-void stop()
+**void stop()**
 
-bool status():
+**bool status():**
 
-Returns the status of the client. If true, then start has been called. If false, then the client has stopped.
+Returns True if the client's main thread has been started.
 
-T& get():
+**T& get():**
 
 Returns a reference to the ClientSocket or inherited class you passed in.
 
@@ -185,7 +185,7 @@ Takes in a ClientSocket as a template.
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {};
 };
 
 NylonSock::Server<CustomClient> server {PORT_NUM};
@@ -193,7 +193,7 @@ NylonSock::Server<CustomClient> server {PORT_NUM};
 
 ### Functions
 
-onConnect(std::function<void (ClientSocket&)>):
+**onConnect(std::function<void (ClientSocket&)>):**
 
 Is called upon a new client connecting to the server.
 
@@ -215,25 +215,27 @@ server.onConnect([](TestClientSocket& sock)
 });
 ```
 
-void emit(std::string event_name, SockData data):
+**void emit(std::string event_name, SockData data):**
 
 Sends data under event_name to ALL clients
 
-void start()
+**void start()**
 
-void stop()
+**void stop()**
 
-bool status()
+**bool status():**
 
-UsrSock& getUsrSock(unsigned int pos):
+Returns True if the server's main thread has been started.
 
-All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the pos, and this function will return a reference to it.
+**UsrSock& getUsrSock(unsigned int pos):**
+
+All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the position, and this function will return a reference to it.
 
 ## ClientSocket class
 
 Constructor:
 
-Takes in a NylonSock::Socket as an argument.
+Takes in a NylonSock::Socket&& as an argument.
 
 The template takes in a ClientSocket class or any inherited class.
 
@@ -243,23 +245,23 @@ Please use CRTP.
 class CustomClient : public NylonSock::ClientSocket<CustomClient>
 {
 public:
-    CustomClient(NylonSock::Socket sock) : ClientSocket(sock) {};
+    CustomClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 ```
 
 ### Functions
 
-void on(std::string msgstr, NylonSock::SockFunc func)
+**void on(std::string msgstr, NylonSock::SockFunc func)**
 
-void emit(std::string msgstr, NylonSock::SockData data)
+**void emit(std::string msgstr, NylonSock::SockData data)**
 
-bool getDestroy()
+**bool getDestroy()**
 
 ## SockData class
 
 Constructor:
 
-It uses templates to take in pretty much any value and converts it to a string using stringstreams.
+It uses templates to take in pretty much any primitive value and convert it to a string using stringstreams.
 
 ```
 SockData {0};
@@ -314,7 +316,7 @@ The library also possesses its own functions with the same naming convention as 
 
 The Error class inherits from std::runtime_exception.
 
-The library also favors the use of std::string instead of const char*.
+The library also favors the use of std::string instead of const char\*.
 
 The library also has its own class encapsulating fd_set called FD_Set. It has the methods set, isset and clr which take in a reference to a Socket class.
 

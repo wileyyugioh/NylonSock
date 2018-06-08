@@ -14,6 +14,7 @@
 constexpr int SHUT_RD = SD_RECEIVE;
 constexpr int SHUT_WR = SD_SEND;
 constexpr int SHUT_RDWR = SD_BOTH;
+
 constexpr int NSCONNRESET = WSAECONNRESET;
 constexpr int NSWOULDBLOCK = WSAEWOULDBLOCK;
 
@@ -37,6 +38,7 @@ constexpr int NSWOULDBLOCK = EWOULDBLOCK;
 
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <mutex>
 
@@ -248,9 +250,6 @@ namespace NylonSock
         
         AddrWrapper()
         {
-            //pray this gets freed
-            //have to use malloc because this is a c library?
-            _info = (addrinfo*)(malloc(sizeof(addrinfo) ) );
             _orig = _info;
             _man = true;
         }
@@ -260,12 +259,6 @@ namespace NylonSock
             if(_man == false)
             {
                 ::freeaddrinfo(_orig);
-                _info = nullptr;
-                _orig = nullptr;
-            }
-            else
-            {
-                free(_orig);
                 _info = nullptr;
                 _orig = nullptr;
             }
@@ -300,10 +293,10 @@ namespace NylonSock
     
     Socket::Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect)
     {
-        _info = std::make_shared<AddrWrapper>(node, service, hints);
+        _info = std::make_unique<AddrWrapper>(node, service, hints);
         
         //socket creation
-        _sw = std::make_shared<SocketWrapper>(*_info->get(), autoconnect);
+        _sw = std::make_unique<SocketWrapper>(*_info->get(), autoconnect);
     }
     
     Socket::Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect) : 
@@ -318,7 +311,7 @@ namespace NylonSock
         //no addr_info because screw you
         
         //sets socket
-        _sw = std::make_shared<SocketWrapper>(port);
+        _sw = std::make_unique<SocketWrapper>(port);
         
     }
     
@@ -327,23 +320,18 @@ namespace NylonSock
         //this is for storing data!
         //yay!
         //gotta allocate that memory yo
-        _info = std::make_shared<AddrWrapper>();
+        _info = std::make_unique<AddrWrapper>();
         
         //sets socket
-        _sw = std::make_shared<SocketWrapper>(port);
-        
-        _info->get()->ai_family = data->ss_family;
-        
-        //copies that data
-        //I PRAY that freeaddrinfo deletes this malloc!
-        //using malloc instead of new because socket is c
-        _info->get()->ai_addr = (sockaddr*)malloc(sizeof(sockaddr) );
-        *_info->get()->ai_addr = *(sockaddr*)data;
-        
-        //not needed?
-        //_info->get()->ai_addrlen = sizeof(data->ss_len);
+        _sw = std::make_unique<SocketWrapper>(port);
     }
-    
+
+    Socket::Socket(Socket&& that) : _info(move(that._info)), _sw(move(that._sw)) {}
+
+    Socket::Socket() = default;
+
+    Socket::~Socket() = default;
+
     const addrinfo* Socket::operator->() const
     {
         //returns socket info
@@ -385,7 +373,7 @@ namespace NylonSock
     {
         
         //true
-        const int y = 1;
+        constexpr int y = 1;
         
         //binds socket to port
         char success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
@@ -756,9 +744,7 @@ namespace NylonSock
     {
         return select(set, timeout.get() );
     }
-    
-    
-    
+
     TimeVal::TimeVal(unsigned int milli)
     {
         //find seconds
@@ -802,5 +788,63 @@ namespace NylonSock
         }
         
         return {data};
+    }
+
+    short PollFDs::map_event(const Events& event)
+    {
+        switch(event)
+        {
+            case Events::NSPOLLIN: return POLLIN;
+            case Events::NSPOLLOUT: return POLLOUT;
+            case Events::NSPOLLPRI: return POLLPRI;
+            case Events::NSPOLLERR: return POLLERR;
+            case Events::NSPOLLHUP: return POLLHUP;
+            case Events::NSPOLLINVAL: return POLLNVAL;
+            default: throw Error("Invalid PollFDs Event");
+        }
+    }
+
+    pollfd& PollFDs::get_element(Socket* sock)
+    {
+        auto port = sock->port();
+        auto pfit = std::find_if(_pfs.begin(), _pfs.end(), [&port](const pollfd& obj)
+        {
+            return obj.fd == port;
+        });
+        if(pfit == _pfs.end())
+        {
+            _pfs.push_back({port, 0, 0});
+            return _pfs.back();
+        }
+
+        return *pfit;
+    }
+
+    void PollFDs::add_event(Socket* sock, const PollFDs::Events& event)
+    {
+        auto& element = get_element(sock);
+        element.events = element.events | map_event(event);
+    }
+
+    void PollFDs::clear() {_pfs.clear();}
+
+    bool PollFDs::get_event(Socket* sock, const PollFDs::Events& event)
+    {
+        return (get_element(sock).events & map_event(event) );
+    }
+
+    int poll(PollFDs& pollfds, unsigned int timeout)
+    {
+#ifdef PLAT_WIN
+        char success = ::WSAPoll(pollfds.get(), pollfds.size(), timeout);
+#elif defined(UNIX_HEADER)
+        char success = ::poll(pollfds.get(), pollfds.size(), timeout);
+#endif
+        if(success == SOCKET_ERROR)
+        {
+            throw Error("Failed to poll ports");
+        }
+
+        return success;
     }
 }

@@ -14,16 +14,14 @@
 
 class InClient : public NylonSock::ClientSocket<InClient>
 {
-private:
 public:
     std::string usrname;
 
-    InClient(NylonSock::Socket sock) : ClientSocket(sock) {}
+    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
-int main(int argc, const char * argv[])
+int main(int argc, const char* argv[])
 {
-	
     if(argc == 1)
     {
         std::cout << "First argument is the ip to connect to" << std::endl;
@@ -48,13 +46,16 @@ int main(int argc, const char * argv[])
         std::cout << data.getRaw() << std::endl;
     });
 
-    std::cout << "Entering text sending mode.\nPress CTRL-C to quit the client." << std::endl;
+    std::cout << "Entering text sending mode.\nEnter \\q to quit the client." << std::endl;
     while(client.status() )
     {
         std::string msg;
         std::getline(std::cin, msg);
+        if(msg == "\\q") break;
         client.emit("msgGet", {msg});
     }
     client.stop();
     std::cout << "Disconnected from server." << std::endl;
+
+    return 0;
 }

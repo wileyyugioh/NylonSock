@@ -104,10 +104,7 @@ namespace NylonSock
             initializeByString(result);
         }
 
-        std::string getRaw() const
-        {
-            return raw_data;
-        }
+        std::string getRaw() const {return raw_data;}
 
         template<typename T>
         operator T()
@@ -120,10 +117,8 @@ namespace NylonSock
             return result;
         }
 
-        operator std::string()
-        {
-            return getRaw();
-        }
+        operator std::string() {return getRaw();}
+
     };
 
     void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
@@ -182,7 +177,7 @@ namespace NylonSock
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
         std::unordered_map<std::string, NoFunc> _nofunctions;
-        std::unique_ptr<FD_Set> _self_fd;
+        std::unique_ptr<PollFDs> _self_ps;
         T* top_class;
         
         bool _destroy_flag;
@@ -269,7 +264,7 @@ namespace NylonSock
                 //call it
                 (efind->second)(data, tclass);
             }
-            
+
             //else, the data gets thrown away
         }
 
@@ -285,10 +280,7 @@ namespace NylonSock
         }
 
     public:
-        ClientSocket(Socket sock) : top_class(static_cast<T*>(this) ), _destroy_flag(false)
-        {
-            _client = std::make_unique<Socket>(sock);
-        }
+        ClientSocket(Socket&& sock) : _client(std::make_unique<Socket>(std::move(sock))), top_class(static_cast<T*>(this) ), _destroy_flag(false) {}
 
         void on(const std::string& event_name, SockFunc<T> func)
         {
@@ -306,39 +298,33 @@ namespace NylonSock
             emitSend(event_name, data, *_client);
         }
 
-        bool getDestroy() const
-        {
-            return _destroy_flag;
-        }
+        bool getDestroy() const {return _destroy_flag;}
 
-        void update(bool nonblock)
+        void update(unsigned int timeout)
         {
             try
             {
                 //lazy initialization
-                if(_self_fd == nullptr)
+                if(_self_ps == nullptr)
                 {
-                    _self_fd = std::make_unique<FD_Set>();
-                    _self_fd->set(*_client);
+                    _self_ps = std::make_unique<PollFDs>();
+                    _self_ps->add_event(_client.get(), PollFDs::Events::NSPOLLIN);
                 }
 
                 //see if we can recv
-                if(nonblock && select(*_self_fd, TimeVal{1000})[0].size() <= 0)
-                {
-                    return;
-                }
+                if(poll(*_self_ps, timeout) == 0) return;
                 char success = recvData(*_client);
                 if(success == NylonSock::SUCCESS) return;
             }
             catch (NylonSock::Error& e) {}
 
+            _destroy_flag = true;
+
             eventCall("disconnect");
 
             _client = nullptr;
             _functions.clear();
-            _self_fd = nullptr;
-            
-            _destroy_flag = true;
+            _self_ps = nullptr;
         }
 
     };
@@ -352,9 +338,9 @@ namespace NylonSock
     {
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
-        std::atomic<bool> _stop_thread{true};
+        std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
-        std::unique_ptr<FD_Set> _fdset;
+        std::unique_ptr<PollFDs> _pollset;
         std::unique_ptr<Socket> _server;
         std::vector<std::unique_ptr<UsrSock> > _clients;
         ServClientFunc _func;
@@ -374,32 +360,29 @@ namespace NylonSock
 			
 #ifdef PLAT_WIN
 			//needed because windows ipv6 doesn't accept ipv4
-			const int n = 0;
+			constexpr int n = 0;
 			setsockopt(*_server, IPPROTO_IPV6, IPV6_V6ONLY, &n, sizeof(n) );
 #endif
-
             fcntl(*_server, O_NONBLOCK);
             
             bind(*_server);
             
             constexpr int backlog = 100;
-            
             listen(*_server, backlog);
         }
 
         void update()
         {
             //this is all accepting new clients
-            //sets[0] is an FD_Set of the sockets ready to be accepted
-            auto sets = select(*_fdset, TimeVal{100});
-                
-            if (sets[0].size() > 0)
+            int count = poll(*_pollset, 100);
+            if (count > 0)
             {
                 auto new_sock = accept(*_server);
                     
                 _clsz_rw.lock();
+
                 //it is an actual socket
-                _clients.push_back(std::make_unique<UsrSock>(new_sock) );
+                _clients.push_back(std::make_unique<UsrSock>(std::move(new_sock) ) );
 
                 _clsz_rw.unlock();
                     
@@ -415,7 +398,8 @@ namespace NylonSock
                 auto sock = (*it).get();
                 if(!sock->getDestroy())
                 {
-                    sock->update(true);
+                    constexpr unsigned int timeout = 0;
+                    sock->update(timeout);
                     ++it;
                     continue;
                 }
@@ -435,13 +419,12 @@ namespace NylonSock
         }
 
     public:
-        Server(const std::string& port)
+        Server(const std::string& port) : _stop_thread(true)
         {
             createServer(port);
 
-            // create fdset
-            _fdset = std::make_unique<FD_Set>();
-            _fdset->set(*_server);
+            _pollset = std::make_unique<PollFDs>();
+            _pollset->add_event(_server.get(), PollFDs::Events::NSPOLLIN);
         }
         
         Server(int port) : Server(std::to_string(port) ) {}
@@ -451,7 +434,7 @@ namespace NylonSock
             stop();
             _thread->join();
         }
-        
+
         Server(const Server& that) = delete;
 
         Server& operator=(const Server& that) = delete;
@@ -460,17 +443,14 @@ namespace NylonSock
 
         Server& operator=(Server&& that) = delete;
        
-        void onConnect(ServClientFunc func)
-        {
-            _func = func;
-        }
+        void onConnect(ServClientFunc func) {_func = func;}
         
         void emit(const std::string& event_name, SockData data)
         {
             std::lock_guard<std::mutex> lock {_clsz_rw};
             for(auto& it : _clients)
             {
-                it->emit(event_name, data);
+                if(!it->getDestroy() ) it->emit(event_name, data);
             }
         }
 
@@ -490,15 +470,9 @@ namespace NylonSock
             _thread = std::make_unique<std::thread>(&Server::thr_update, this);
         }
 
-        void stop()
-        {
-            _stop_thread = true;
-        }
+        void stop() {_stop_thread = true;}
 
-        bool status() const
-        {
-            return !_stop_thread.load();
-        }
+        bool status() const {return !_stop_thread.load();}
 
         UsrSock& getUsrSock(unsigned int pos)
         {
@@ -517,21 +491,19 @@ namespace NylonSock
     {
     private:
         //see top of cpp file to see how data is sent
-        std::unique_ptr<Socket> _server;
-        
         //client socket has similar interface
         std::unique_ptr<T> _inter;
 
-        std::atomic<bool> _stop_thread{true};
+        std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
         
-        void createListener(const std::string& ip, const std::string& port)
+        static Socket createListener(const std::string& ip, const std::string& port)
         {
             addrinfo hints = {0};
             hints.ai_family = AF_UNSPEC;
             hints.ai_socktype = SOCK_STREAM;
             
-            _server = std::make_unique<Socket>(ip, port, &hints, true);
+            return {ip, port, &hints, true};
         }
 
         void update()
@@ -549,16 +521,15 @@ namespace NylonSock
             while(true)
             {
                 if(_stop_thread.load() || _inter->getDestroy() ) break;
-                
-                _inter->update(false);
+                constexpr unsigned int timeout = 250;
+                _inter->update(timeout);
             }
         }
 
     public:
-        Client(const std::string& ip, const std::string& port)
+        Client(const std::string& ip, const std::string& port) : _stop_thread(true)
         {
-             createListener(ip, port);
-            _inter = std::make_unique<T>(*_server);
+            _inter = std::make_unique<T>(createListener(ip, port));
         }
 
         Client(const std::string& ip, int port) : Client(ip, std::to_string(port) ) {}
@@ -592,38 +563,23 @@ namespace NylonSock
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
         }
 
-        bool getDestroy() const
-        {
-            return _inter->getDestroy();
-        }
+        bool getDestroy() const {return _inter->getDestroy();}
 
         void start()
         {
             //Prevents making too many threads
-            if(!_stop_thread.load() )
-            {
-                return;
-            }
+            if(!_stop_thread.load() ) return;
 
             _stop_thread = false;
 
             _thread = std::make_unique<std::thread>(&Client<T>::update, this);
         }
 
-        void stop()
-        {
-            _stop_thread = true;
-        }
+        void stop() {_stop_thread = true;}
 
-        bool status() const
-        {
-            return !_stop_thread.load();
-        }
+        bool status() const {return !_stop_thread.load();}
 
-        T& get()
-        {
-            return *_inter;
-        }
+        T& get() {return *_inter;}
 
     };
 }

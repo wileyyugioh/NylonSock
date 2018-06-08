@@ -35,11 +35,13 @@ enum PortBlockers
 #include <netdb.h>
 #include <sys/fcntl.h>
 #include <sys/socket.h>
+#include <sys/poll.h>
 
 typedef int SOCKET;
 #endif
 
 #include <cmath>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <set>
@@ -94,8 +96,8 @@ namespace NylonSock
         class SocketWrapper;
         class AddrWrapper;
 
-        std::shared_ptr<AddrWrapper> _info;
-        std::shared_ptr<SocketWrapper> _sw;
+        std::unique_ptr<AddrWrapper> _info;
+        std::unique_ptr<SocketWrapper> _sw;
 
         NSHelper _the_help{};
     public:
@@ -103,8 +105,9 @@ namespace NylonSock
         Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect = false);
         Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
-        Socket() = default;
-        ~Socket() = default;
+        Socket(Socket&& that);
+        Socket();
+        ~Socket();
         
         const addrinfo* operator->() const;
         const addrinfo* get() const;
@@ -201,7 +204,28 @@ namespace NylonSock
     void setsockopt(const Socket& sock, int level, int optname, const void *optval, socklen_t optlen);
     
     std::string inet_ntop(const Socket& sock);
-    
+
+    class PollFDs
+    {
+    public:
+        enum Events
+        {
+            NSPOLLIN, NSPOLLOUT, NSPOLLPRI, NSPOLLERR, NSPOLLHUP, NSPOLLINVAL
+        };
+    private:
+        std::vector<pollfd> _pfs;
+        static short map_event(const Events& event);
+        pollfd& get_element(Socket* sock);
+    public:
+        void add_event(Socket* sock, const Events& event);
+        bool get_event(Socket* sock, const Events& event);
+        void clear();
+
+        pollfd* get() {return &_pfs[0];}
+        unsigned int size() const {return _pfs.size();}
+    };
+
+    int poll(PollFDs& pollfds, unsigned int timeout);
 }
 
 #endif /* defined(__NylonSock__Socket__) */
