@@ -38,6 +38,7 @@ constexpr int NSWOULDBLOCK = EWOULDBLOCK;
 
 #endif
 
+#include <algorithm>
 #include <cstring>
 #include <mutex>
 
