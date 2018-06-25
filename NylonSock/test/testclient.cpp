@@ -41,6 +41,7 @@ int main(int argc, const char* argv[])
     std::getline(std::cin, client.get().usrname);
 
     client.emit("usrname", {client.get().usrname});
+
     client.on("msgSend", [](SockData data, InClient& client)
     {
         std::cout << data.getRaw() << std::endl;

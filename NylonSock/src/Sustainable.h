@@ -56,7 +56,8 @@ namespace NylonSock
     template<class Self>
     using SockFunc = std::function<void(SockData, Self&)>;
 
-    using NoFunc = std::function<void()>;
+    template<class Self>
+    using NoFunc = std::function<void(Self&)>;
     
     class TOO_BIG : public NylonSock::Error
     {
@@ -77,13 +78,12 @@ namespace NylonSock
 
         void initializeByString(const std::string& data)
         {
-            raw_data = data;
-
             if(data.size() > maximum_sock_val)
             {
                 //throw error because data is too large
                 throw TOO_BIG("The data size of " + std::to_string(data.size()) + " is too big.");
             }
+            raw_data = data;
         }
         
     public:
@@ -157,7 +157,7 @@ namespace NylonSock
     public:
         virtual ~ClientInterface() = default;
         void on(const std::string& event_name, SockFunc<T> func) {impl().on(event_name, func);}
-        void on(const std::string& event_name, NoFunc func) {impl().on(event_name, func);}
+        void on(const std::string& event_name, NoFunc<T> func) {impl().on(event_name, func);}
         void emit(const std::string& event_name, const SockData& data) {impl().emit(event_name, data);}
         bool getDestroy() const {impl().getDestroy();}
         
@@ -167,20 +167,14 @@ namespace NylonSock
     class ClientSocket : public ClientInterface<T>
     {
     private:
-        class CLOSE : public std::runtime_error
-        {
-        public:
-            CLOSE(const std::string& err) : std::runtime_error(err) {}
-        };
-
-    protected:
         std::unique_ptr<Socket> _client;
         std::unordered_map<std::string, SockFunc<T> > _functions;
-        std::unordered_map<std::string, NoFunc> _nofunctions;
+        std::unordered_map<std::string, NoFunc<T> > _nofunctions;
         std::unique_ptr<PollFDs> _self_ps;
-        T* top_class;
-        
+
         bool _destroy_flag;
+
+        T& impl() {return *static_cast<T*>(this);}
 
         char recvData(Socket& sock)
         {
@@ -250,7 +244,7 @@ namespace NylonSock
                 datastr.assign(data.begin(), data.end() );
             }
 
-            eventCall(eventstr, SockData{datastr}, *top_class);
+            eventCall(eventstr, SockData{datastr}, impl() );
 
             return NylonSock::SUCCESS;
         }
@@ -264,30 +258,29 @@ namespace NylonSock
                 //call it
                 (efind->second)(data, tclass);
             }
-
-            //else, the data gets thrown away
+            //else, the event is unknown, and the data gets tossed
         }
 
-        void eventCall(const std::string& eventstr)
+        void eventCall(const std::string& eventstr, T& tclass)
         {
-            //if the event is in the functions
+            //ditto
             auto efind = _nofunctions.find(eventstr);
             if(efind != _nofunctions.end() )
             {
-                //call it
-                (efind->second)();
+                (efind->second)(tclass);
             }
         }
 
     public:
-        ClientSocket(Socket&& sock) : _client(std::make_unique<Socket>(std::move(sock))), top_class(static_cast<T*>(this) ), _destroy_flag(false) {}
+        ClientSocket(Socket&& sock) : 
+            _client(std::make_unique<Socket>(std::move(sock))), _destroy_flag(false) {}
 
         void on(const std::string& event_name, SockFunc<T> func)
         {
             _functions[event_name] = func;
         }
 
-        void on(const std::string& event_name, NoFunc func)
+        void on(const std::string& event_name, NoFunc<T> func)
         {
             _nofunctions[event_name] = func;
         }
@@ -320,7 +313,7 @@ namespace NylonSock
 
             _destroy_flag = true;
 
-            eventCall("disconnect");
+            eventCall("disconnect", impl() );
 
             _client = nullptr;
             _functions.clear();
@@ -378,14 +371,13 @@ namespace NylonSock
             if (count > 0)
             {
                 auto new_sock = accept(*_server);
-                    
-                _clsz_rw.lock();
 
-                //it is an actual socket
-                _clients.push_back(std::make_unique<UsrSock>(std::move(new_sock) ) );
+                {
+                    std::lock_guard<std::mutex> lock{_clsz_rw};
+                    //it is an actual socket
+                    _clients.push_back(std::make_unique<UsrSock>(std::move(new_sock) ) );
+                }
 
-                _clsz_rw.unlock();
-                    
                 //call the onConnect func
                  _func(*_clients.back() );
 
@@ -473,13 +465,6 @@ namespace NylonSock
         void stop() {_stop_thread = true;}
 
         bool status() const {return !_stop_thread.load();}
-
-        UsrSock& getUsrSock(unsigned int pos)
-        {
-            std::lock_guard<std::mutex> lock{_clsz_rw};
-            return *_clients.at(pos);
-        }
-
     };
     
     template <class T, class Dummy = void>
@@ -487,7 +472,7 @@ namespace NylonSock
 
     //I really don't want to do any more work
     template <class T>
-    class Client<T, typename std::enable_if<std::is_base_of<ClientSocket<T>, T>::value>::type> : public ClientInterface<T>
+    class Client<T, typename std::enable_if<std::is_base_of<ClientSocket<T>, T>::value>::type>
     {
     private:
         //see top of cpp file to see how data is sent
@@ -527,10 +512,8 @@ namespace NylonSock
         }
 
     public:
-        Client(const std::string& ip, const std::string& port) : _stop_thread(true)
-        {
-            _inter = std::make_unique<T>(createListener(ip, port));
-        }
+        Client(const std::string& ip, const std::string& port) : 
+            _inter(std::make_unique<T>(createListener(ip, port) ) ), _stop_thread(true) {}
 
         Client(const std::string& ip, int port) : Client(ip, std::to_string(port) ) {}
 
@@ -553,7 +536,7 @@ namespace NylonSock
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         }
 
-        void on(const std::string& event_name, NoFunc func)
+        void on(const std::string& event_name, NoFunc<T> func)
         {
             if(!_stop_thread.load() ) _inter->on(event_name, func);
         }
@@ -562,8 +545,6 @@ namespace NylonSock
         {
             if(!_stop_thread.load() ) _inter->emit(event_name, data);
         }
-
-        bool getDestroy() const {return _inter->getDestroy();}
 
         void start()
         {
@@ -580,7 +561,6 @@ namespace NylonSock
         bool status() const {return !_stop_thread.load();}
 
         T& get() {return *_inter;}
-
     };
 }
 

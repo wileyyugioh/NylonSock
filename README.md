@@ -28,7 +28,7 @@ Server<CLIENTSOCK> serv {PORTNUM}
 
 serv.onConnect([](CLIENTSOCK& sock)
 {
-    sock.emit(“Hallo”, {“ok”})
+    sock.emit(“hallo”, {“ok”})
 });
 
 serv.start();
@@ -65,6 +65,74 @@ client.start();
 ```
 
 When a client receives the hallo event from a server, it will print out “ok.”
+
+# More Documentation!
+
+Here's a quick cheatsheet of the various functionality baked in
+
+Server
+
+```
+// initialize the server (but don't start it)
+Server<CLIENTSOCK> server {PORTNUM}
+
+// this is called whenever a socket connects
+server.onConnect([&server](CLIENTSOCK& socket)
+{
+    // this is sent to every client connected to the server
+    server.emit("message", "test");
+
+    // this is sent to one client
+    socket.emit("message", "specific test");
+
+    // this is called when the socket receives an event
+    socket.on("secret message", [](SockData data, CLIENTSOCK& socket)
+    {
+        std::string message = data;
+        std::cout << message << std::endl;
+    });
+
+    // on has a second flavor as well
+    socket.on("no message", [](CLIENTSOCK& socket)
+    {
+        std::cout << "mo problems" << std::endl;
+    });
+
+    // this is called when a socket disconnects
+    socket.on("disconnect", [](CLIENTSOCK& socket)
+    {
+        std::cout << "Goodbye" << std::endl;
+    });
+});
+
+// spins up a thread running a polling loop
+server.start();
+```
+
+Client
+```
+// initialize the client (but don't start it)
+NylonSock::Client<CLIENTSOCK> client{MYIP, PORTNUM};
+
+// send to the server (not all clients)
+client.emit("message", "server test");
+
+// this is called when the event is received
+client.on("secret message", [](SockData data, CLIENTSOCK& socket)
+{
+    std::string message = data;
+    std::cout << message << std::endl;
+});
+
+// client.on comes in a a second flavor as well
+client.on("cool event", [](CLIENTSOCK& socket)
+{
+    std::cout << "Rad" << std::endl;
+});
+
+// spins up a thread running a polling loop
+client.start();
+```
 
 # Running the Test Server / Client
 
@@ -207,7 +275,7 @@ server.onConnect([](TestClientSocket& sock)
         std::cout << data.getRaw() << std::endl;
     });
 
-    sock.on("disconnect", []()
+    sock.on("disconnect", [](TestClientSock& sock)
     {
         std::cout << "Goodbye" << std::endl;
     });
@@ -226,10 +294,6 @@ Sends data under event_name to ALL clients
 **bool status():**
 
 Returns True if the server's main thread has been started.
-
-**UsrSock& getUsrSock(unsigned int pos):**
-
-All ClientSockets are stored in a vector in the Server class. You can access a particular client if you want by the position, and this function will return a reference to it.
 
 ## ClientSocket class
 

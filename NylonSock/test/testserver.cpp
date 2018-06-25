@@ -12,12 +12,12 @@
 #include <thread>
 #include <chrono>
 
-class TestClientSock : public NylonSock::ClientSocket<TestClientSock>
+class InClient : public NylonSock::ClientSocket<InClient>
 {
 public:
     std::string usrname;
 
-    TestClientSock(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
+    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
 };
 
 int main(int argc, const char* argv[])
@@ -26,11 +26,12 @@ int main(int argc, const char* argv[])
 
 	std::cout << gethostname() << std::endl;
     
-	Server<TestClientSock> serv{ 3490 };
+    //this is the port num -|
+	Server<InClient> serv{3490};
 
-	serv.onConnect([&](TestClientSock& sock)
+	serv.onConnect([&serv](InClient& sock)
 	{
-        sock.on("usrname", [&](SockData data, TestClientSock& sock)
+        sock.on("usrname", [&serv](SockData data, InClient& sock)
         {
             sock.usrname = data.getRaw();
 
@@ -38,13 +39,13 @@ int main(int argc, const char* argv[])
             serv.emit("msgSend", {sock.usrname + " joined the server."});
         });
 
-        sock.on("msgGet", [&](SockData data, TestClientSock& sock)
+        sock.on("msgGet", [&serv](SockData data, InClient& sock)
         {
             std::cout << sock.usrname + ": " + data.getRaw() << std::endl;
             serv.emit("msgSend", {sock.usrname + ": " + data.getRaw()});
         });
 
-        sock.on("disconnect", [&]()
+        sock.on("disconnect", [&serv](InClient& sock)
         {
             if(!sock.usrname.empty())
             {
@@ -56,7 +57,7 @@ int main(int argc, const char* argv[])
 	
     serv.start();
 
-    std::cout << "Entering text sending mode.\nEnter \\q to quit the client." << std::endl;
+    std::cout << "Entering text sending mode.\nEnter \\q to quit the server." << std::endl;
     while(true)
     {
         std::string msg;
