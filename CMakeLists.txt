@@ -65,8 +65,7 @@ add_executable(TestClient "${PROJECT_SOURCE_DIR}/NylonSock/test/testclient.cpp")
 
 target_link_libraries(TestServer ${LIB_NAME})
 target_link_libraries(TestClient ${LIB_NAME})
+ENDIF (BUILD_TESTS)
 
 install(TARGETS ${LIB_NAME} DESTINATION lib)
 install(FILES ${INCLUDES} DESTINATION include/nylonsock)
-
-ENDIF (BUILD_TESTS)
