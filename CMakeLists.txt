@@ -10,7 +10,6 @@ set(CMAKE_BUILD_TYPE Debug)
 ENDIF (BUILD_DEBUG)
 
 
-
 IF (NOT WIN32)
 set(INCLUDE_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
 set(LIB_DIR ${CMAKE_BINARY_DIR}/${PROJECT_NAME}/lib)
@@ -60,9 +59,9 @@ target_link_libraries(nylonsock ws2_32)
 ENDIF(WIN32)
 
 IF (BUILD_TESTS)
-include_directories(NylonSock/test/)
-add_executable(TestServer NylonSock/test/testserver.cpp)
-add_executable(TestClient NylonSock/test/testclient.cpp)
+include_directories("${PROJECT_SOURCE_DIR}/NylonSock/test/")
+add_executable(TestServer "${PROJECT_SOURCE_DIR}/NylonSock/test/testserver.cpp")
+add_executable(TestClient "${PROJECT_SOURCE_DIR}/NylonSock/test/testclient.cpp")
 
 target_link_libraries(TestServer ${LIB_NAME})
 target_link_libraries(TestClient ${LIB_NAME})
