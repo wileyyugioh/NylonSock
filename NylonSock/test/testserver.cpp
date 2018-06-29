@@ -6,19 +6,13 @@
 //  Copyright (c) 2015 Wiley Yu. All rights reserved.
 //
 
-#include "NylonSock.hpp"
+#include "sharedclient.h"
+
+#include <NylonSock.hpp>
 
 #include <iostream>
 #include <thread>
 #include <chrono>
-
-class InClient : public NylonSock::ClientSocket<InClient>
-{
-public:
-    std::string usrname;
-
-    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
-};
 
 int main(int argc, const char* argv[])
 {
@@ -34,15 +28,27 @@ int main(int argc, const char* argv[])
         sock.on("usrname", [&serv](SockData data, InClient& sock)
         {
             sock.usrname = data.getRaw();
+        });
 
-            std::cout << sock.usrname + " joined the server." << std::endl;
-            serv.emit("msgSend", {sock.usrname + " joined the server."});
+        sock.on("room", [&serv](SockData data, InClient& sock)
+        {
+            sock.room = data.getRaw();
+
+            std::string room = sock.room;
+            std::cout << sock.usrname + " joined the server at room " + room << std::endl;
+            serv.emit_if("msgSend", {sock.usrname + " joined the room."}, [room](const InClient& a)
+            {
+                return room == a.room;
+            });
         });
 
         sock.on("msgGet", [&serv](SockData data, InClient& sock)
         {
-            std::cout << sock.usrname + ": " + data.getRaw() << std::endl;
-            serv.emit("msgSend", {sock.usrname + ": " + data.getRaw()});
+            std::string room = sock.room;
+            serv.emit_if("msgSend", {sock.usrname + ": " + data.getRaw()}, [room](const InClient& a)
+            {
+                return room == a.room;
+            });
         });
 
         sock.on("disconnect", [&serv](InClient& sock)
@@ -50,7 +56,11 @@ int main(int argc, const char* argv[])
             if(!sock.usrname.empty())
             {
                 std::cout << sock.usrname + " left the server." << std::endl;
-                serv.emit("msgSend", {sock.usrname + " left the server."});
+                std::string room = sock.room;
+                serv.emit_if("msgSend", {sock.usrname + " left the server."}, [room](const InClient& a)
+                {
+                    return room == a.room;
+                });
             }
         });
 	});

@@ -120,33 +120,6 @@ namespace NylonSock
         operator std::string() {return getRaw();}
 
     };
-
-    void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
-    {
-        //sends data to server/client
-
-        //assumes socket is already binded
-        std::string raw_data = data.getRaw();
-       
-        //size of data
-        sock_size_type sizeofstr = htons(raw_data.size() );
-        
-        //size of event name
-        sock_size_type sizeofevent = htons(event_name.size() );
-        
-        //formatting data: size of data + size of eventname + eventname + data
-        auto str_cast = (char*)(&sizeofstr);
-        auto event_cast = (char*)(&sizeofevent);
-
-        std::string format_str = std::string{str_cast, str_cast + sizeof(sizeofstr)} + 
-            std::string{event_cast, event_cast + 
-            sizeof(sizeofevent)} + 
-            event_name + 
-            raw_data;
-
-        //sending total data
-        send(socket, format_str.c_str(), format_str.size(), 0);
-    }
     
     //have to use CRTP
     template<class T>
@@ -176,24 +149,35 @@ namespace NylonSock
 
         T& impl() {return *static_cast<T*>(this);}
 
+        void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
+        {
+            //sends data to server/client
+
+            //assumes socket is already binded
+            std::string raw_data = data.getRaw();
+            
+            //size of event name
+            sock_size_type sizeofevent = htons(event_name.size() );
+
+            //size of data
+            sock_size_type sizeofstr = htons(raw_data.size() );
+            
+            //formatting data: size of eventname + size of data + eventname + data
+            auto event_cast = (char*)(&sizeofevent);
+            auto str_cast = (char*)(&sizeofstr);
+
+            std::string format_str = 
+                std::string{event_cast, event_cast + sizeof(sizeofevent)} + //size of event
+                std::string{str_cast, str_cast + sizeof(sizeofstr)} + //size of data
+                event_name + //event
+                raw_data; //data
+
+            //sending total data
+            send(socket, format_str.c_str(), format_str.size(), 0);
+        }
+
         char recvData(Socket& sock)
         {
-            auto string_to_hex = [](const std::string& input)
-            {
-                static const char* const lut = "0123456789ABCDEF";
-                size_t len = input.length();
-
-                std::string output;
-                output.reserve(2 * len);
-                for (size_t i = 0; i < len; ++i)
-                {
-                    const unsigned char c = input[i];
-                    output.push_back(lut[c >> 4]);
-                    output.push_back(lut[c & 15]);
-                }
-                return output;
-            };
-
             auto castback = [](const std::string& str)
             {
                 sock_size_type data;
@@ -203,20 +187,19 @@ namespace NylonSock
                 return ntohs(data);
             };
 
-            //gets the size of data in package that tells data size
             size_t data_size = sizeof(sock_size_type);
 
-            std::vector<char> datalen(data_size), eventlen(data_size);
+            std::vector<char> eventlen(data_size), datalen(data_size);
             
-            //receives data from client
+            //receives event length from client
             //also assumes socket is non blocking
-            char success = recv(sock, datalen.data(), data_size, 0);
+            char success = recv(sock, eventlen.data(), data_size, 0);
             
             //break when there is no info or an error
             if(success <= 0) return success;
             
-            //receive event length
-            recv(sock, eventlen.data(), data_size, 0);
+            //receive data length
+            recv(sock, datalen.data(), data_size, 0);
             
             //allocate buffers!
             //char is not guaranteed 8 bit
@@ -331,6 +314,8 @@ namespace NylonSock
     {
     private:
         using ServClientFunc = std::function<void (UsrSock&)>;
+        using IfFunc = std::function<bool (const UsrSock&)>;
+
         std::atomic<bool> _stop_thread;
         std::unique_ptr<std::thread> _thread;
         std::unique_ptr<PollFDs> _pollset;
@@ -439,10 +424,20 @@ namespace NylonSock
         
         void emit(const std::string& event_name, SockData data)
         {
-            std::lock_guard<std::mutex> lock {_clsz_rw};
+            std::lock_guard<std::mutex> lock{_clsz_rw};
             for(auto& it : _clients)
             {
                 if(!it->getDestroy() ) it->emit(event_name, data);
+            }
+        }
+
+        void emit_if(const std::string& event_name, SockData data, IfFunc compare)
+        {
+            //this makes me WET, not DRY
+            std::lock_guard<std::mutex> lock{_clsz_rw};
+            for(auto& it : _clients)
+            {
+                if(!it->getDestroy() && compare(*it) ) it->emit(event_name, data);
             }
         }
 

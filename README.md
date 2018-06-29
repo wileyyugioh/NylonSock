@@ -16,7 +16,7 @@ Tested on OSX and Windows, but should work on Linux as well
 # Including
 
 ```
-#include <nylonsock/NylonSock.hpp>
+#include <NylonSock.hpp>
 ```
 
 # Documentation
@@ -189,8 +189,8 @@ client.on("disconnect", []()
 The emit function takes in a string EventName and a SockData class for the second parameter. The function, when called, will send the data encapsulated in the SockData class to any clients, and call their 'on' function with a matching EventName.
 
 ```
-client.emit("greetings", {"Hello World!"});
-server.emit("this is sent", {"to all clients!"});
+client.emit("greetings", {"Hello World!"}); // this is sent to the server
+server.emit("this is sent", {"to all clients!"}); // this is sent to every client
 ```
 
 ## \*.start()
@@ -286,6 +286,12 @@ server.onConnect([](TestClientSocket& sock)
 **void emit(std::string event_name, SockData data):**
 
 Sends data under event_name to ALL clients
+
+**void emit_if(std::string event_name, SockData data, std::function<bool (ClientSocket&)>):**
+
+Sends data to a client *if* the function passed in returns true.
+
+This is helpful for creating custom chat rooms and etc.
 
 **void start()**
 

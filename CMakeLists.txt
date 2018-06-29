@@ -60,6 +60,7 @@ target_link_libraries(nylonsock ws2_32)
 ENDIF(WIN32)
 
 IF (BUILD_TESTS)
+include_directories(NylonSock/test/)
 add_executable(TestServer NylonSock/test/testserver.cpp)
 add_executable(TestClient NylonSock/test/testclient.cpp)
 
