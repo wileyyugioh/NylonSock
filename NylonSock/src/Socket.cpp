@@ -530,6 +530,8 @@ namespace NylonSock
     
     std::string gethostname()
     {
+		NSHelper _help_wrap;
+		
         constexpr size_t BUFFER_SIZE = 256;
         char name[BUFFER_SIZE];
         
