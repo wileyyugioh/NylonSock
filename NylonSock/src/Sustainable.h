@@ -431,16 +431,6 @@ namespace NylonSock
             }
         }
 
-        void emit_if(const std::string& event_name, SockData data, IfFunc compare)
-        {
-            //this makes me WET, not DRY
-            std::lock_guard<std::mutex> lock{_clsz_rw};
-            for(auto& it : _clients)
-            {
-                if(!it->getDestroy() && compare(*it) ) it->emit(event_name, data);
-            }
-        }
-
         unsigned long count() 
         {
             std::lock_guard<std::mutex> lock {_clsz_rw};

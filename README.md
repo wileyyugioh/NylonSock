@@ -287,12 +287,6 @@ server.onConnect([](TestClientSocket& sock)
 
 Sends data under event_name to ALL clients
 
-**void emit_if(std::string event_name, SockData data, std::function<bool (ClientSocket&)>):**
-
-Sends data to a client *if* the function passed in returns true.
-
-This is helpful for creating custom chat rooms and etc.
-
 **void start()**
 
 **void stop()**

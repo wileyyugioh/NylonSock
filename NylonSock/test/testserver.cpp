@@ -13,6 +13,9 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <algorithm>
+#include <map>
+#include <vector>
 
 int main(int argc, const char* argv[])
 {
@@ -23,48 +26,58 @@ int main(int argc, const char* argv[])
     //this is the port num -|
 	Server<InClient> serv{3490};
 
-	serv.onConnect([&serv](InClient& sock)
+    /*
+        We can get away with this being thread safe
+        by only accessing the map in onConnect
+        since our server's update loop runs in a single thread
+    */
+    std::map<std::string, std::vector<InClient*> > rooms;
+
+	serv.onConnect([&serv, &rooms](InClient& sock)
 	{
         sock.on("usrname", [&serv](SockData data, InClient& sock)
         {
             sock.usrname = data.getRaw();
         });
 
-        sock.on("room", [&serv](SockData data, InClient& sock)
+        sock.on("room", [&serv, &rooms](SockData data, InClient& sock)
         {
             sock.room = data.getRaw();
 
-            std::string room = sock.room;
-            std::cout << sock.usrname + " joined the server at room " + room << std::endl;
-            serv.emit_if("msgSend", {sock.usrname + " joined the room."}, [room](const InClient& a)
+            rooms[sock.room].push_back(&sock);
+
+            std::cout << sock.usrname + " joined the server at room " + sock.room << std::endl;
+            for(auto& it : rooms[sock.room])
             {
-                return room == a.room;
-            });
+                it->emit("msgSend", {sock.usrname + " joined the room."});
+            }
         });
 
-        sock.on("msgGet", [&serv](SockData data, InClient& sock)
+        sock.on("msgGet", [&serv, &rooms](SockData data, InClient& sock)
         {
-            std::string room = sock.room;
-            serv.emit_if("msgSend", {sock.usrname + ": " + data.getRaw()}, [room](const InClient& a)
+            for(auto& it : rooms[sock.room])
             {
-                return room == a.room;
-            });
+                it->emit("msgSend", {sock.usrname + ": " + data.getRaw()});
+            }
         });
 
-        sock.on("disconnect", [&serv](InClient& sock)
+        sock.on("disconnect", [&serv, &rooms](InClient& sock)
         {
             if(!sock.usrname.empty())
             {
+                auto& vec = rooms[sock.room];
+                vec.erase(std::remove(vec.begin(), vec.end(), &sock), vec.end());
+
                 std::cout << sock.usrname + " left the server." << std::endl;
                 std::string room = sock.room;
-                serv.emit_if("msgSend", {sock.usrname + " left the server."}, [room](const InClient& a)
+                for(auto& it : rooms[sock.room])
                 {
-                    return room == a.room;
-                });
+                    it->emit("msgSend", {sock.usrname + " left the server."});
+                }
             }
         });
-	});
-	
+    });
+
     serv.start();
 
     std::cout << "Entering text sending mode.\nEnter \\q to quit the server." << std::endl;
@@ -78,9 +91,8 @@ int main(int argc, const char* argv[])
         serv.emit("msgSend", msg);
     }
 
-	//It never reaches here, does it...
+    //It never reaches here, does it...
     serv.stop();
 
     return 0;
 }
-
