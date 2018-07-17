@@ -144,7 +144,7 @@ namespace NylonSock
     
     Error::Error(const std::string& what, bool null) : std::runtime_error(what) {}
     
-    //needs to be in shared ptr
+    //Class that manages socket resource
     class Socket::SocketWrapper
     {
     private:
@@ -226,13 +226,13 @@ namespace NylonSock
         
     };
     
-    //needs to be in shared ptr
+    //Class that manages addrinfo resource
     class Socket::AddrWrapper
     {
     private:
         addrinfo* _orig;
         addrinfo* _info;
-        char _man;
+        bool _man;
     public:
         AddrWrapper(const char* node, const char* service, const addrinfo* hints)
         {
@@ -305,16 +305,6 @@ namespace NylonSock
         
     }
     
-    Socket::Socket(SOCKET port)
-    {
-        //used for a socket that got recv.
-        //no addr_info because screw you
-        
-        //sets socket
-        _sw = std::make_unique<SocketWrapper>(port);
-        
-    }
-    
     Socket::Socket(SOCKET port, const sockaddr_storage* data)
     {
         //this is for storing data!
@@ -327,8 +317,6 @@ namespace NylonSock
     }
 
     Socket::Socket(Socket&& that) : _info(move(that._info)), _sw(move(that._sw)) {}
-
-    Socket::Socket() = default;
 
     Socket::~Socket() = default;
 
@@ -370,23 +358,28 @@ namespace NylonSock
     }
     
     void bind(Socket& sock)
-    {
-        
-        //true
-        constexpr int y = 1;
-        
+    {        
         //binds socket to port
         char success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
         if(success == SOCKET_ERROR)
         {
+            //true
+            constexpr int y = 1;
+
             //try clearing the port
             setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &y, sizeof(y) );
             
             //and rebind
-            ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
+            success = ::bind(sock.port(), sock->ai_addr, sock->ai_addrlen);
+        }
+
+        //give up trying to bind socket
+        if (success == SOCKET_ERROR)
+        {
+            throw Error("Failed to bind socket");
         }
         
-        //clears addrinfo
+        //clears addrinfo from Socket, leaving it in a partial state :(
         sock.freeaddrinfo();
     }
     
@@ -432,7 +425,7 @@ namespace NylonSock
     size_t send(const Socket& sock, const void* buf, size_t len, int flags)
     {
         //returns amount of data sent
-        //may not equal total amount of data!
+        //may not equal total amount of data, so we need to loop
         size_t size = 0;
         while(size != len)
         {
@@ -537,6 +530,8 @@ namespace NylonSock
     
     std::string gethostname()
     {
+		NSHelper _help_wrap;
+		
         constexpr size_t BUFFER_SIZE = 256;
         char name[BUFFER_SIZE];
         

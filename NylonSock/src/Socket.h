@@ -58,6 +58,7 @@ namespace NylonSock
     void NSInit();
     void NSRelease();
 
+    //Class to startup and release WSA for Windows
     class NSHelper
     {
     private:
@@ -103,10 +104,8 @@ namespace NylonSock
     public:
         Socket(const char* node, const char* service, const addrinfo* hints, bool autoconnect = false);
         Socket(const std::string& node, const std::string& service, const addrinfo* hints, bool autoconnect = false);
-        Socket(SOCKET port);
         Socket(SOCKET port, const sockaddr_storage* data);
         Socket(Socket&& that);
-        Socket();
         ~Socket();
         
         const addrinfo* operator->() const;
@@ -122,7 +121,6 @@ namespace NylonSock
     
     constexpr char SUCCESS = 0;
     constexpr char CLOSED = -1;
-    const Socket NULL_SOCKET{};
     
     void bind(Socket& sock);
     

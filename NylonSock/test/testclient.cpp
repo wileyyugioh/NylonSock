@@ -6,19 +6,13 @@
 //  Copyright © 2016 Wiley Yu. All rights reserved.
 //
 
-#include "NylonSock.hpp"
+#include "sharedclient.h"
+
+#include <NylonSock.hpp>
 
 #include <iostream>
 #include <chrono>
 #include <thread>
-
-class InClient : public NylonSock::ClientSocket<InClient>
-{
-public:
-    std::string usrname;
-
-    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
-};
 
 int main(int argc, const char* argv[])
 {
@@ -39,8 +33,12 @@ int main(int argc, const char* argv[])
 
     std::cout << "What is your username?" << std::endl;
     std::getline(std::cin, client.get().usrname);
-
     client.emit("usrname", {client.get().usrname});
+
+    std::cout << "What room do you want to connect to?" << std::endl;
+    std::getline(std::cin, client.get().room);
+    client.emit("room", {client.get().room});
+
     client.on("msgSend", [](SockData data, InClient& client)
     {
         std::cout << data.getRaw() << std::endl;
