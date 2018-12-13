@@ -388,11 +388,7 @@ namespace NylonSock
 
         void thr_update()
         {
-            while(true)
-            {
-                if(_stop_thread.load() ) break;
-                update();
-            }
+            while(!_stop_thread.load()) update();
         }
 
     public:
@@ -488,9 +484,8 @@ namespace NylonSock
             };
 
             RAIIMe rm{this};
-            while(true)
+            while(!_stop_thread.load() && !_inter->getDestroy() )
             {
-                if(_stop_thread.load() || _inter->getDestroy() ) break;
                 constexpr unsigned int timeout = 250;
                 _inter->update(timeout);
             }
