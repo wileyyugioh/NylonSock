@@ -9,7 +9,7 @@ public:
     std::string usrname;
     std::string room;
 
-    InClient(NylonSock::Socket&& sock) : ClientSocket(std::move(sock)) {}
+    using NylonSock::ClientSocket<InClient>::ClientSocket;
 };
 
 #endif /* SHAREDCLIENT_H */

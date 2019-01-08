@@ -80,7 +80,7 @@ namespace NylonSock
         {
             if(data.size() > maximum_sock_val)
             {
-                //throw error because data is too large
+                // throw error because data is too large
                 throw TOO_BIG("The data size of " + std::to_string(data.size()) + " is too big.");
             }
             raw_data = data;
@@ -121,7 +121,7 @@ namespace NylonSock
 
     };
     
-    //have to use CRTP
+    // have to use CRTP
     template<class T>
     class ClientInterface
     {
@@ -151,28 +151,28 @@ namespace NylonSock
 
         void emitSend(const std::string& event_name, const SockData& data, Socket& socket)
         {
-            //sends data to server/client
+            // sends data to server/client
 
-            //assumes socket is already binded
+            // assumes socket is already binded
             std::string raw_data = data.getRaw();
             
-            //size of event name
+            // size of event name
             sock_size_type sizeofevent = htons(event_name.size() );
 
-            //size of data
+            // size of data
             sock_size_type sizeofstr = htons(raw_data.size() );
             
-            //formatting data: size of eventname + size of data + eventname + data
+            // formatting data: size of eventname + size of data + eventname + data
             auto event_cast = (char*)(&sizeofevent);
             auto str_cast = (char*)(&sizeofstr);
 
             std::string format_str = 
-                std::string{event_cast, event_cast + sizeof(sizeofevent)} + //size of event
-                std::string{str_cast, str_cast + sizeof(sizeofstr)} + //size of data
-                event_name + //event
-                raw_data; //data
+                std::string{event_cast, event_cast + sizeof(sizeofevent)} + // size of event
+                std::string{str_cast, str_cast + sizeof(sizeofstr)} + // size of data
+                event_name + // event
+                raw_data; // data
 
-            //sending total data
+            // sending total data
             send(socket, format_str.c_str(), format_str.size(), 0);
         }
 
@@ -191,25 +191,25 @@ namespace NylonSock
 
             std::vector<char> eventlen(data_size), datalen(data_size);
             
-            //receives event length from client
-            //also assumes socket is non blocking
+            // receives event length from client
+            // also assumes socket is non blocking
             char success = recv(sock, eventlen.data(), data_size, 0);
             
-            //break when there is no info or an error
+            // break when there is no info or an error
             if(success <= 0) return success;
             
-            //receive data length
+            // receive data length
             recv(sock, datalen.data(), data_size, 0);
             
-            //allocate buffers!
-            //char is not guaranteed 8 bit
+            // allocate buffers!
+            // char is not guaranteed 8 bit
             std::vector<uint8_t> event, data;
             std::string eventstr, datastr;
             
-            //receive and convert event
+            // receive and convert event
             sock_size_type eventlensize = castback({eventlen.begin(), eventlen.end()});
 
-            //only recv if eventname greater than 0
+            // only recv if eventname greater than 0
             if(eventlensize > 0)
             {
                 event.resize(eventlensize, 0);
@@ -217,7 +217,7 @@ namespace NylonSock
                 eventstr.assign(event.begin(), event.end() );
             }
 
-            //receive and convert data
+            // receive and convert data
             sock_size_type datalensize = castback({datalen.begin(), datalen.end()});
 
             if(datalensize > 0)
@@ -234,19 +234,19 @@ namespace NylonSock
 
         void eventCall(const std::string& eventstr, SockData data, T& tclass)
         {
-            //if the event is in the functions
+            // if the event is in the functions
             auto efind = _functions.find(eventstr);
             if(efind != _functions.end() )
             {
                 //call it
                 (efind->second)(data, tclass);
             }
-            //else, the event is unknown, and the data gets tossed
+            // else, the event is unknown, and the data gets tossed
         }
 
         void eventCall(const std::string& eventstr, T& tclass)
         {
-            //ditto
+            // ditto
             auto efind = _nofunctions.find(eventstr);
             if(efind != _nofunctions.end() )
             {
@@ -255,8 +255,8 @@ namespace NylonSock
         }
 
     public:
-        ClientSocket(Socket&& sock) : 
-            _client(std::make_unique<Socket>(std::move(sock))), _destroy_flag(false) {}
+        ClientSocket(Socket&& sock) : _client(std::make_unique<Socket>(std::move(sock))),
+                                      _destroy_flag(false) {}
 
         void on(const std::string& event_name, SockFunc<T> func)
         {
@@ -270,7 +270,7 @@ namespace NylonSock
 
         void emit(const std::string& event_name, const SockData& data)
         {
-            //sends data to client
+            // sends data to client
             emitSend(event_name, data, *_client);
         }
 
@@ -280,14 +280,14 @@ namespace NylonSock
         {
             try
             {
-                //lazy initialization
+                // lazy initialization
                 if(_self_ps == nullptr)
                 {
                     _self_ps = std::make_unique<PollFDs>();
                     _self_ps->add_event(_client.get(), PollFDs::Events::NSPOLLIN);
                 }
 
-                //see if we can recv
+                // see if we can recv
                 if(poll(*_self_ps, timeout) == 0) return;
                 char success = recvData(*_client);
                 if(success == NylonSock::SUCCESS) return;
@@ -305,7 +305,7 @@ namespace NylonSock
 
     };
     
-    //dummy
+    // dummy
     template<class UsrSock, class Dummy = void>
     class Server;
     
@@ -327,8 +327,8 @@ namespace NylonSock
         void createServer(const std::string& port)
         {
             addrinfo hints = {0};
-            //force server to be ipv6
-            //ipv4 and ipv6 addresses can connect
+            // force server to be ipv6
+            // ipv4 and ipv6 addresses can connect
             hints.ai_family = AF_INET6;
             hints.ai_socktype = SOCK_STREAM;
             hints.ai_protocol = IPPROTO_TCP;
@@ -337,7 +337,7 @@ namespace NylonSock
             _server = std::make_unique<Socket>(nullptr, port.c_str(), &hints);
 			
 #ifdef PLAT_WIN
-			//needed because windows ipv6 doesn't accept ipv4
+			// needed because windows ipv6 doesn't accept ipv4
 			constexpr int n = 0;
 			setsockopt(*_server, IPPROTO_IPV6, IPV6_V6ONLY, &n, sizeof(n) );
 #endif
@@ -351,7 +351,7 @@ namespace NylonSock
 
         void update()
         {
-            //this is all accepting new clients
+            // this is all accepting new clients
             int count = poll(*_pollset, 100);
             if (count > 0)
             {
@@ -359,16 +359,16 @@ namespace NylonSock
 
                 {
                     std::lock_guard<std::mutex> lock{_clsz_rw};
-                    //it is an actual socket
+                    // it is an actual socket
                     _clients.push_back(std::make_unique<UsrSock>(std::move(new_sock) ) );
                 }
 
-                //call the onConnect func
+                // call the onConnect func
                  _func(*_clients.back() );
 
              }
 
-             //update all clients
+             // update all clients
              auto it = _clients.begin();
              while(it != _clients.end() )
              {
@@ -380,7 +380,7 @@ namespace NylonSock
                     ++it;
                     continue;
                 }
-                //kill the client
+                // kill the client
                 std::lock_guard<std::mutex> lock{_clsz_rw};
                 it = _clients.erase(it);
              }
@@ -435,7 +435,7 @@ namespace NylonSock
 
         void start()
         {
-            //Prevents making too many threads
+            // Prevents making too many threads
             if(!_stop_thread.load() ) return;
 
             _stop_thread = false;
@@ -451,13 +451,13 @@ namespace NylonSock
     template <class T, class Dummy = void>
     class Client;
 
-    //I really don't want to do any more work
+    // I really don't want to do any more work
     template <class T>
     class Client<T, typename std::enable_if<std::is_base_of<ClientSocket<T>, T>::value>::type>
     {
     private:
-        //see top of cpp file to see how data is sent
-        //client socket has similar interface
+        // see top of cpp file to see how data is sent
+        // client socket has similar interface
         std::unique_ptr<T> _inter;
 
         std::atomic<bool> _stop_thread;
@@ -528,7 +528,7 @@ namespace NylonSock
 
         void start()
         {
-            //Prevents making too many threads
+            // Prevents making too many threads
             if(!_stop_thread.load() ) return;
 
             _stop_thread = false;

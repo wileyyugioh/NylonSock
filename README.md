@@ -3,7 +3,7 @@
 [![Build Status](https://travis-ci.org/wileyyugioh/NylonSock.svg)](https://travis-ci.org/wileyyugioh/NylonSock)
 
 
-A C++ interface for the C UNIX Sockets Library
+A C++11 interface for the C UNIX Sockets Library
 
 The function names should remain unchanged resulting in easy understanding and porting.
 
@@ -40,7 +40,7 @@ Where CLIENTSOCK is any class inherited by NylonSock::ClientSocket.
 class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
 {
     public:
-        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+        using NylonSock::ClientSocket<CLIENTSOCK>::ClientSocket;
 }
 ```
 
@@ -52,7 +52,7 @@ Clients use the same format as servers.
 class CLIENTSOCK : public NylonSock::ClientSocket<CLIENTSOCK>
 {
     public:
-        CLIENTSOCK(NylonSock::Socket&& sock) : ClientSocket(std::move(sock) ) {}
+        using NylonSock::ClientSocket<CLIENTSOCK>::ClientSocket;
 }
 
 NylonSock::Client<CLIENTSOCK> client{"MYIP", PORTNUM};
@@ -95,7 +95,7 @@ server.onConnect([&server](CLIENTSOCK& socket)
     // on has a second flavor as well
     socket.on("no message", [](CLIENTSOCK& socket)
     {
-        std::cout << "mo problems" << std::endl;
+        std::cout << "no problem" << std::endl;
     });
 
     // this is called when a socket disconnects
@@ -114,6 +114,9 @@ Client
 // initialize the client (but don't start it)
 NylonSock::Client<CLIENTSOCK> client{MYIP, PORTNUM};
 
+// spins up a thread running a polling loop
+client.start();
+
 // send to the server (not all clients)
 client.emit("message", "server test");
 
@@ -129,9 +132,6 @@ client.on("cool event", [](CLIENTSOCK& socket)
 {
     std::cout << "Rad" << std::endl;
 });
-
-// spins up a thread running a polling loop
-client.start();
 ```
 
 # Running the Test Server / Client
